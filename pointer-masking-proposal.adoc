@@ -25,41 +25,38 @@ We propose to add:
 
 * new PM configuration CSR register called _**MMTE**_ (Memory Tagging Extension)
 * new PM pointer masking CSR register for each privilege level called _**MPMMASK**_ (Pointer Masking Mask)
-* new PM pointer base CSR register for S-mode and U-mode called _**SPMBASE**_ (Pointer Masking Base)
+* new PM pointer base CSR register for each privilege level called _**MPMBASE**_ (Pointer Masking Base)
 
 Restricted views of the _**mmte**_ register appear as the _**hmte**_, _**smte**_ and _**umte**_ registers in the HS-level, S-level and U-level ISAs respectively.
 
-Restricted views of the _**mpmmask**_ register appear as the _**hpmmask**_, _**spmmask**_ and _**upmmask**_ registers in the HS-level, S-level and U-level ISAs respectively.
+Each privilege level has own copy of pointer masking CSR register. It appears as the _**mpmmask**_, _**hpmmask**_, _**spmmask**_ and _**upmmask**_ registers in the M-level, HS-level, S-level and U-level ISAs, respectively.
 
-Restricted view of the _**spmbase**_ register appear as the _**upmbase**_ registers in the U-level ISA.
+Each privilege level has its own copy of pointer base CSR register. It appears as the _**mpmbase**_, _**hpmbase**_, _**spmbase**_ and _**upmbase**_ registers in the M-level, HS-level, S-level and U-level ISAs, respectively.
 
-The purpose of the _**mpmmask**_ register is to be able to precisely define a mask which bits of the effective address are ignored. Actual address can be calculated by using requested address and _**mpmmask**_ register:
+The purpose of the _**mpmmask**_ register is to be able to precisely define a mask whose bits of the effective address are ignored. The actual address can be calculated by using requested address and _**mpmmask**_ register.
 
-[source]
-----
-actual_address = (requested_address & ~mpmmask) | (0 & mpmmask)
-----
+Additionally, _**mpmbase**_ register can be defined, allowing to replace those bits of the actual_address which are defined to be masked by _**mpmmask**_. _**mpmbase**_ can be configured to replace only the subset of the masked bits, and the remaining are still ignored and can be used for any purpose (e.g. memory tagging).
 
-Additionally, S-mode and U-mode can define _**spmbase**_ / _**upmbase**_ register which allows the user to set the top bits of the actual_address (instead of zeros). The top bits of the requested_address are still ignored and can still be used for any tagging purpose.
-
-If _**spmbase**_ register is set (has value other than zero) actual address can be calculated by using requested address, _**mpmmask**_ and _**spmbase**_ register:
+If _**mpmbase**_ register is set (has value other than zero), actual address can be calculated by using requested address, _**mpmmask**_ and _**mpmbase**_ register:
 
 [source]
 ----
-actual_address = (requested_address & ~mpmmask) | (spmbase & mpmmask)
+actual_address = (requested_address & ~mpmmask) | (mpmbase & mpmmask)
 ----
 
-When PM extension is enabled, _**mpmmask**_ and _**spmbase**_ registers allow to implement in-process isolation feature. That feature allows for each thread to be isolated to a given block of the address space. It can be used to isolate untrusted code within a process. A high-level concept can be seen at Picture 1.
+_**mpmbase**_ register can be read-only and hardwired to 0. In such case, the actual address will be calculated only by using requested address and _**mpmmask**_ register.
+
+When PM extension is enabled, _**mpmmask**_ and _**mpmbase**_ registers allow to implement in-process isolation feature. That feature allows for each thread to be isolated to a given block of the address space. It can be used to isolate untrusted code within a process. A high-level concept can be seen on Picture 1.
 
 image:media/image1.png[image,width=451,height=394]
 
-Picture 1: In-Process isolation leveraging _**mpmmask**_ and _**spmbase**_ registers
+Picture 1: In-Process isolation leveraging _**mpmmask**_ and _**mpmbase**_ registers
 
 _**MMTE**_ layout can be found in Figure 1a, 1b, 1c and 1d for RV32, Figure 2a, 2b, 2c and 2d for RV64 and Figure 3a, 3b, 3c and 3d for RV128. Table 1 explains the meaning of _PM_ bits for RV32, RV64 and RV128. Table 2 explains the meaning of _xTE_ (PM Enforce) bits.
 
 _**MPMMASK**_ layout can be found in Figure 4a, 4b, 4c and 4d for RV32, Figure 5a, 5b, 5c and 5d for RV64 and Figure 6a, 6b, 6c and 6d for RV128.
 
-_**SPMBASE**_ layout can be found in Figure 7a and 7b for RV32, Figure 8a and 8b for RV64 and Figure 9a and 9b for RV128.
+_**MPMBASE**_ layout can be found in Figure 7a, 7b, 7c and 7d for RV32, Figure 8a, 8b, 8c and 8d for RV64 and Figure 9a, 9b, 9c and 9d for RV128.
 
 
 [%header, cols=6*]
@@ -158,41 +155,47 @@ WPRI,UTE,WPRI,PM
 Figure 3d: Memory Tagging Extension register (_**umte**_) for RV128 (U-mode) +
  +
 
-[cols=",",]
+[cols="15%,15%,70%", options="header"]
 |===========================================================================================================================
-|*Value* |*Meaning*
-|00 |PM is disabled (_default_) and _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege level
-|01 |PM is enabled and _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege level
-|10 |PM is disabled and _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege level
-|11 |PM is enabled and _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege level
+^|*PM Bits* ^|*Name* ^|*Meaning*
+^.^| PM[0:0] ^.^| PM.Enabled |
+
+  0 – PM is disabled (_default_) +
+  1 – PM is enabled
+
+^.^| PM[1:1] ^.^| PM.Current |
+
+ 0 – _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege level +
+ 1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege level
+
 |===========================================================================================================================
 Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128 +
  +
 
-[cols=",",]
+[cols="10%,90%", options="header"]
 |=============================================
 |*Bit* |*Meaning*
-|_UTE_ a|
+^.^|_UTE_ a|
 Enforce _PM_ in U-mode
 ______________________________________________
-* 0 – don’t enforce _PM_ in U-mode (_default_)
-* 1 – enforce _PM_ in U-mode
+* 0 – don’t enforce _PM_ using U-mode CSR configuration (_default_)
+* 1 – enforce _PM_ using U-mode CSR configuration
 ______________________________________________
 
-|_STE_ a|
+^.^|_STE_ a|
 Enforce _PM_ in S-mode
 
 ____________________________________________
-* 0 – don’t enforce PM in S-mode (_default_)
-* 1 – enforce _PM_ in S-mode
+* 0 – don’t enforce PM using S-mode CSR configuration (_default_)
+* 1 – enforce _PM_ using S-mode CSR configuration
 ____________________________________________
 
-|_HTE_ a|
-Enforce _PM_ in H-mode
+^.^|_HTE_ a|
+Enforce _PM_ in HS-mode
 
 ______________________________________________
-* 0 – don’t enforce _PM_ in H-mode (_default_)
-* 1 – enforce _PM_ in H-mode
+* 0 – don’t enforce _PM_ using HS-mode CSR configuration (_default_)
+* 1 – enforce _PM_ using HS-mode CSR configuration
 ______________________________________________
 
 |=============================================
@@ -297,10 +300,26 @@ Figure 6d: Memory Tagging Extension register (_**upmmask**_) for RV128 (U-MODE) 
 
 [%header, cols=1*]
 ,===
+mpmbase[31:0]
+BASE
+,===
+Figure 7a: Memory Tagging Extension register (_**mpmbase**_) for RV32 (M-MODE) +
+ +
+
+[%header, cols=1*]
+,===
+hpmbase[31:0]
+BASE
+,===
+Figure 7b: Memory Tagging Extension register (_**hpmbase**_) for RV32 (H-MODE) +
+ +
+
+[%header, cols=1*]
+,===
 spmbase[31:0]
 BASE
 ,===
-Figure 7a: Memory Tagging Extension register (_**spmbase**_) for RV32 (S-MODE) +
+Figure 7c: Memory Tagging Extension register (_**spmbase**_) for RV32 (S-MODE) +
  +
 
 [%header, cols=1*]
@@ -308,7 +327,23 @@ Figure 7a: Memory Tagging Extension register (_**spmbase**_) for RV32 (S-MODE) +
 upmbase[31:0]
 BASE
 ,===
-Figure 7b: Memory Tagging Extension register (_**upmbase**_) for RV32 (U-MODE) +
+Figure 7d: Memory Tagging Extension register (_**upmbase**_) for RV32 (U-MODE) +
+ +
+
+[%header, cols=1*]
+,===
+mpmbase[63:0]
+BASE
+,===
+Figure 8a: Memory Tagging Extension register (_**mpmbase**_) for RV64 (M-MODE) +
+ +
+
+[%header, cols=1*]
+,===
+hpmbase[63:0]
+BASE
+,===
+Figure 8b: Memory Tagging Extension register (_**hpmbase**_) for RV64 (H-MODE) +
  +
 
 [%header, cols=1*]
@@ -316,7 +351,7 @@ Figure 7b: Memory Tagging Extension register (_**upmbase**_) for RV32 (U-MODE) +
 spmbase[63:0]
 BASE
 ,===
-Figure 8a: Memory Tagging Extension register (_**spmbase**_) for RV64 (S-MODE) +
+Figure 8c: Memory Tagging Extension register (_**spmbase**_) for RV64 (S-MODE) +
  +
 
 [%header, cols=1*]
@@ -324,7 +359,23 @@ Figure 8a: Memory Tagging Extension register (_**spmbase**_) for RV64 (S-MODE) +
 upmbase[63:0]
 BASE
 ,===
-Figure 8b: Memory Tagging Extension register (_**upmbase**_) for RV64 (U-MODE) +
+Figure 8d: Memory Tagging Extension register (_**upmbase**_) for RV64 (U-MODE) +
+ +
+
+[%header, cols=1*]
+,===
+mpmbase[127:0]
+BASE
+,===
+Figure 9a: Memory Tagging Extension register (_**mpmbase**_) for RV128 (M-MODE) +
+ +
+
+[%header, cols=1*]
+,===
+hpmbase[127:0]
+BASE
+,===
+Figure 9b: Memory Tagging Extension register (_**hpmbase**_) for RV128 (H-MODE) +
  +
 
 [%header, cols=1*]
@@ -332,7 +383,7 @@ Figure 8b: Memory Tagging Extension register (_**upmbase**_) for RV64 (U-MODE) +
 spmbase[127:0]
 BASE
 ,===
-Figure 9a: Memory Tagging Extension register (_**spmbase**_) for RV128 (S-MODE) +
+Figure 9c: Memory Tagging Extension register (_**spmbase**_) for RV128 (S-MODE) +
  +
 
 [%header, cols=1*]
@@ -340,31 +391,40 @@ Figure 9a: Memory Tagging Extension register (_**spmbase**_) for RV128 (S-MODE) 
 upmbase[127:0]
 BASE
 ,===
-Figure 9b: Memory Tagging Extension register (_**upmbase**_) for RV128 (U-MODE) +
+Figure 9d: Memory Tagging Extension register (_**upmbase**_) for RV128 (U-MODE) +
  +
 
 [[explanation]]
 ## Explanation
 
-_**MMTE**_ register fully two-fold function:
+_**MMTE**_ register fulfills two-fold function:
 
-1. Can be programmable by more privileged mode
+1. Can be programmable by more privileged mode (unless PM.Current bit is enabled)
 2. Performs status register function for the current privilege mode
 
-_PM_ bits from **_MMTE_** register are accessible in all modes (U/S/HS/M) and can be read to query the current status of PM feature (if enabled). However, only M-mode privileged code can set the value for _PM_ bits.
+_PM_ bits from **_MMTE_** register are accessible in all modes (U/S/HS/M) and can be read to query the current status of PM feature (if enabled). By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits.
+If _PM.Enable_ bit is changing the status, corresponding _xTE_ bit is automatically updated.
 
-_UTE_ bit can be read by any mode, but only more privileged modes (S, HS and M) can change the value of it.
+_xTE_ bits fulfills two-fold functions:
 
-_STE_ bit can be read by S, HS and M mode, but only more privileged modes (HS and M) can change the value of it.
+1. Can be used to quickly disable _PM_ for the corresponding mode without changing current configuration.
+2. Can be used to modify which currently set-up _**xPMMASK**_ / _**xPMBASE**_ and _PM_ bits are enforced.
 
-_HTE_ bit can be read by HS mode, but only more privileged mode (M) can change the value of it.
+By default, the current CPU mode is using _**xPMMASK**_, _**xPMBASE**_ and _PM_ bits corresponding to it. When CPU is switching the mode, all _xTE_ bits are cleared except the one corresponding to the new mode. _xTE_ bit corresponding to that mode reflects the current configuration of the _PM.Enable_ bit.
+
+_xTE_ can be used to modify which level of _**xPMMASK**_ / _**xPMBASE**_ and _PM_ bits is currently enforced. If code running on S-mode would like to read the pointer provided by code running in U-mode under _PM_ enabled, S-mode might temporarily disable its own _STE_ bit and enable the desired one (_UTE_). From that point, any requested address will be generated using corresponding _PM_ configuration.
+
+U-mode can only use own _PM_ configuration.
+S-mode can use _PM_ configuration for S and U-mode
+HS-mode can use _PM_ configuration for HS, S and U-mode
+M-mode can use _PM_ configuration for M, HS, S and U-mode
 
 _**MPMMASK**_ register fully two-fold function:
 
 1.  Based on PM bits configuration, it can be programmable by the higher privilege mode or by the current privilege mode
 2.  Performs status register function for the current privilege mode
 
-_**SPMBASE**_ register fully two-fold function:
+_**MPMBASE**_ register fully two-fold function:
 
 1.  Based on PM bits configuration, it can be programmable by the higher privilege mode or by the current privilege mode
 2.  Performs status register function for the current privilege mode
