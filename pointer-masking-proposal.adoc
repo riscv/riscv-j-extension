@@ -414,10 +414,10 @@ By default, the current CPU mode is using _**xPMMASK**_, _**xPMBASE**_ and _PM_ 
 
 _xTE_ can be used to modify which level of _**xPMMASK**_ / _**xPMBASE**_ and _PM_ bits is currently enforced. If code running on S-mode would like to read the pointer provided by code running in U-mode under _PM_ enabled, S-mode might temporarily disable its own _STE_ bit and enable the desired one (_UTE_). From that point, any requested address will be generated using corresponding _PM_ configuration.
 
-U-mode can only use own _PM_ configuration.
-S-mode can use _PM_ configuration for S and U-mode
-HS-mode can use _PM_ configuration for HS, S and U-mode
-M-mode can use _PM_ configuration for M, HS, S and U-mode
+U-mode can only use own _PM_ configuration. +
+S-mode can use _PM_ configuration for S and U-mode +
+HS-mode can use _PM_ configuration for HS, S and U-mode +
+M-mode can use _PM_ configuration for M, HS, S and U-mode +
 
 _**MPMMASK**_ register fully two-fold function:
 
