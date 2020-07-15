@@ -1,9 +1,12 @@
 [[risc-v-pointer-masking-proposal]]
+
 # RISC-V Pointer Masking proposal
+
+RISC-V ISA Specification. Working draft, subject to change.
 
 _Adam Zabrocki_, _Lee Campbell_, _Martin Maas_, _RISC-V TEE_ and _J Extension Task Groups_
 
-**Contributors: ** [Members of the TEE and J Extension Task Groups]
+**Contributors: ** Jecel Assumpcao, Allen Baum, Paul Donahue, Andy Glew, John Ingalls, Christos Kotselidis, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the TEE and J Extension Task Groups
 
 [[introduction]]
 ## Introduction
@@ -40,18 +43,17 @@ Additionally, _**mpmbase**_ register can be defined, allowing to replace those b
 If _**mpmbase**_ register is set (has value other than zero), actual address can be calculated by using requested address, _**mpmmask**_ and _**mpmbase**_ register:
 
 [source]
+.Equation 1.
 ----
 actual_address = (requested_address & ~mpmmask) | (mpmbase & mpmmask)
 ----
-Equation 1.
 
 _**mpmbase**_ register can be read-only and hardwired to 0. In such case, the actual address will be calculated only by using requested address and _**mpmmask**_ register.
 
 When PM extension is enabled, _**mpmmask**_ and _**mpmbase**_ registers allow to implement in-process isolation feature. That feature allows for each thread to be isolated to a given block of the address space. It can be used to isolate untrusted code within a process. A high-level concept can be seen on Picture 1.
 
+.Picture 1: In-Process isolation leveraging _**mpmmask**_ and _**mpmbase**_ registers
 image:media/image1.png[image,width=451,height=394]
-
-Picture 1: In-Process isolation leveraging _**mpmmask**_ and _**mpmbase**_ registers
 
 _**MMTE**_ layout can be found in Figure 1a, 1b, 1c and 1d for M, HS, VS and (V)U-mode. +
 
@@ -61,39 +63,38 @@ _**MPMBASE**_ layout can be found in Figure 3a, 3b, 3c and 3d for M, HS, VS and 
 
 Table 1 explains the meaning of _PM_ bits for RV32, RV64 and RV128. +
 
+:table-caption!:
+
 [%header, cols=5*]
+.Figure 1a: Memory Tagging Extension register (_**mmte**_) M-MODE
 ,===
 mmte[XLEN-1:15],mmte[7:6],mmte[5:4],mmte[3:2],mmte[1:0]
 WPRI,M-mode PM,HS-mode PM,VS-mode PM,(V)U-mode PM
 ,===
-Figure 1a: Memory Tagging Extension register (_**mmte**_) M-MODE +
- +
 
 [%header, cols=4*]
+.Figure 1b: Memory Tagging Extension register (_**hmte**_) HS-mode
 ,===
 hmte[XLEN-1:15],hmte[5:4],hmte[3:2],hmte[1:0]
 WPRI,HS-mode PM,VS-mode PM,(V)U-mode PM
 ,===
-Figure 1b: Memory Tagging Extension register (_**hmte**_) HS-mode +
- +
 
 [%header, cols=3*]
+.Figure 1c: Memory Tagging Extension register (_**smte**_) for S-mode
 ,===
 smte[XLEN-1:15],smte[3:2],smte[1:0]
 WPRI,VS-mode PM,(V)U-mode PM
 ,===
-Figure 1c: Memory Tagging Extension register (_**smte**_) for S-mode +
- +
 
 [%header, cols=2*]
+.Figure 1d: Memory Tagging Extension register (_**umte**_) for U-mode
 ,===
 umte[XLEN-1:15],umte[1:0]
 WPRI,(V)U-mode PM
 ,===
-Figure 1d: Memory Tagging Extension register (_**umte**_) for U-mode +
- +
 
 [cols="15%,15%,70%", options="header"]
+.Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128
 |===========================================================================================================================
 ^|*PM Bits* ^|*Name* ^|*Meaning*
 ^.^| PM[0:0] ^.^| PM.Enabled |
@@ -107,73 +108,65 @@ Figure 1d: Memory Tagging Extension register (_**umte**_) for U-mode +
  1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege level
 
 |===========================================================================================================================
-Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128 +
- +
 
 [%header, cols=1*]
+.Figure 2a: Memory Tagging Extension register (_**mpmmask**_) for M-MODE
 ,===
 mpmmask[XLEN-1:0]
 MASK
 ,===
-Figure 2a: Memory Tagging Extension register (_**mpmmask**_) for M-MODE +
- +
 
 [%header, cols=1*]
+.Figure 2b: Memory Tagging Extension register (_**hpmmask**_) for HS-MODE
 ,===
 hpmmask[XLEN-1:0]
 MASK
 ,===
-Figure 2b: Memory Tagging Extension register (_**hpmmask**_) for HS-MODE +
- +
 
 [%header, cols=1*]
+.Figure 2c: Memory Tagging Extension register (_**spmmask**_) for S-MODE
 ,===
 spmmask[XLEN-1:0]
 MASK
 ,===
-Figure 2c: Memory Tagging Extension register (_**spmmask**_) for S-MODE +
- +
 
 [%header, cols=1*]
+.Figure 2d: Memory Tagging Extension register (_**upmmask**_) for U-MODE
 ,===
 upmmask[XLEN-1:0]
 MASK
 ,===
-Figure 2d: Memory Tagging Extension register (_**upmmask**_) for U-MODE +
- +
- +
+
+//-
 
 [%header, cols=1*]
+.Figure 3a: Memory Tagging Extension register (_**mpmbase**_) for M-MODE
 ,===
 mpmbase[XLEN-1:0]
 BASE
 ,===
-Figure 3a: Memory Tagging Extension register (_**mpmbase**_) for M-MODE +
- +
 
 [%header, cols=1*]
+.Figure 3b: Memory Tagging Extension register (_**hpmbase**_) for HS-MODE
 ,===
 hpmbase[XLEN-1:0]
 BASE
 ,===
-Figure 3b: Memory Tagging Extension register (_**hpmbase**_) for HS-MODE +
- +
 
 [%header, cols=1*]
+.Figure 3c: Memory Tagging Extension register (_**spmbase**_) for S-MODE
 ,===
 spmbase[XLEN-1:0]
 BASE
 ,===
-Figure 3c: Memory Tagging Extension register (_**spmbase**_) for S-MODE +
- +
 
 [%header, cols=1*]
+.Figure 3d: Memory Tagging Extension register (_**upmbase**_) for U-MODE
 ,===
 upmbase[XLEN-1:0]
 BASE
 ,===
-Figure 3d: Memory Tagging Extension register (_**upmbase**_) for U-MODE +
- +
+
 
 [[explanation]]
 ## Explanation
