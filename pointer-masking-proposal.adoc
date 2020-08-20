@@ -6,7 +6,7 @@ RISC-V ISA Specification. Working draft, subject to change.
 
 _Adam Zabrocki_, _Lee Campbell_, _Martin Maas_, _RISC-V TEE_ and _J Extension Task Groups_
 
-**Contributors: ** Jecel Assumpcao, Allen Baum, Paul Donahue, Andy Glew, John Ingalls, Christos Kotselidis, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the TEE and J Extension Task Groups
+**Contributors: ** Jecel Assumpcao, Allen Baum, Paul Donahue, Greg Favor, Andy Glew, John Ingalls, Christos Kotselidis, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the TEE and J Extension Task Groups
 
 [[introduction]]
 ## Introduction
@@ -27,14 +27,14 @@ This document proposes an extension for RISC-V called PM (Pointer Masking) which
 We propose to add:
 
 * new PM configuration CSR register called _**MMTE**_ (Memory Tagging Extension)
-* new PM pointer masking CSR register for each privilege level called _**MPMMASK**_ (Pointer Masking Mask)
-* new PM pointer base CSR register for each privilege level called _**MPMBASE**_ (Pointer Masking Base)
+* new PM pointer masking CSR register for each privilege mode called _**MPMMASK**_ (Pointer Masking Mask)
+* new PM pointer base CSR register for each privilege mode called _**MPMBASE**_ (Pointer Masking Base)
 
-Restricted views of the _**mmte**_ register appear as the _**hmte**_, _**smte**_ and _**umte**_ registers in the HS-level, VS-level and (V)U-level ISAs respectively.
+Restricted views of the _**mmte**_ register appear as the _**smte**_, _**vsmte**_ and _**umte**_ registers in the HS/S-mode, VS-mode and (V)U-mode ISAs respectively.
 
-Each privilege level has own copy of pointer masking CSR register. It appears as the _**mpmmask**_, _**hpmmask**_, _**spmmask**_ and _**upmmask**_ registers in the M-level, HS-level, VS-level and (V)U-level ISAs, respectively.
+Each privilege mode has own copy of pointer masking CSR register. It appears as the _**mpmmask**_, _**spmmask**_, _**vspmmask**_ and _**upmmask**_ registers in the M-mode, HS/S-mode, VS-mode and (V)U-mode ISAs, respectively.
 
-Each privilege level has its own copy of pointer base CSR register. It appears as the _**mpmbase**_, _**hpmbase**_, _**spmbase**_ and _**upmbase**_ registers in the M-level, HS-level, VS-level and (V)U-level ISAs, respectively.
+Each privilege mode has its own copy of pointer base CSR register. It appears as the _**mpmbase**_, _**spmbase**_, _**vspmbase**_ and _**upmbase**_ registers in the M-mode, HS/S-mode, VS-mode and (V)U-mode ISAs, respectively.
 
 The purpose of the _**mpmmask**_ register is to be able to precisely define a mask whose bits of the effective address are ignored. The actual address can be calculated by using requested address and _**mpmmask**_ register.
 
@@ -45,7 +45,7 @@ If _**mpmbase**_ register is set (has value other than zero), actual address can
 [source]
 .Equation 1.
 ----
-actual_address = (requested_address & ~mpmmask) | (mpmbase & mpmmask)
+actual_address = (requested_address & ~mpmmask) | mpmbase
 ----
 
 _**mpmbase**_ register can be read-only and hardwired to 0. In such case, the actual address will be calculated only by using requested address and _**mpmmask**_ register.
@@ -55,11 +55,11 @@ When PM extension is enabled, _**mpmmask**_ and _**mpmbase**_ registers allow to
 .Picture 1: In-Process isolation leveraging _**mpmmask**_ and _**mpmbase**_ registers
 image:media/image1.png[image,width=451,height=394]
 
-_**MMTE**_ layout can be found in Figure 1a, 1b, 1c and 1d for M, HS, VS and (V)U-mode. +
+_**MMTE**_ layout can be found in Figure 1a, 1b, 1c and 1d for M, HS/S, VS and (V)U-mode. +
 
-_**MPMMASK**_ layout can be found in Figure 2a, 2b, 2c and 2d for M, HS, VS and (V)U-mode. +
+_**MPMMASK**_ layout can be found in Figure 2a, 2b, 2c and 2d for M, HS/S, VS and (V)U-mode. +
 
-_**MPMBASE**_ layout can be found in Figure 3a, 3b, 3c and 3d for M, HS, VS and (V)U-mode. +
+_**MPMBASE**_ layout can be found in Figure 3a, 3b, 3c and 3d for M, HS/S, VS and (V)U-mode. +
 
 Table 1 explains the meaning of _PM_ bits for RV32, RV64 and RV128. +
 
@@ -68,28 +68,28 @@ Table 1 explains the meaning of _PM_ bits for RV32, RV64 and RV128. +
 [%header, cols=5*]
 .Figure 1a: Memory Tagging Extension register (_**mmte**_) M-MODE
 ,===
-mmte[XLEN-1:15],mmte[7:6],mmte[5:4],mmte[3:2],mmte[1:0]
-WPRI,M-mode PM,HS-mode PM,VS-mode PM,(V)U-mode PM
+mmte[XLEN-1:6],mmte[5:4],mmte[3:2],mmte[1:0]
+WPRI,M-mode PM,HS/S-mode PM,(V)U-mode PM
 ,===
 
 [%header, cols=4*]
-.Figure 1b: Memory Tagging Extension register (_**hmte**_) HS-mode
+.Figure 1b: Memory Tagging Extension register (_**smte**_) HS/S-mode
 ,===
-hmte[XLEN-1:15],hmte[5:4],hmte[3:2],hmte[1:0]
-WPRI,HS-mode PM,VS-mode PM,(V)U-mode PM
+smte[XLEN-1:4],smte[3:2],smte[1:0]
+WPRI,HS/S-mode PM,U-mode PM
 ,===
 
 [%header, cols=3*]
-.Figure 1c: Memory Tagging Extension register (_**smte**_) for S-mode
+.Figure 1c: Memory Tagging Extension register (_**vsmte**_) for VS-mode
 ,===
-smte[XLEN-1:15],smte[3:2],smte[1:0]
-WPRI,VS-mode PM,(V)U-mode PM
+vsmte[XLEN-1:4],vsmte[3:2],vsmte[1:0]
+WPRI,VS-mode PM,VU-mode PM
 ,===
 
 [%header, cols=2*]
-.Figure 1d: Memory Tagging Extension register (_**umte**_) for U-mode
+.Figure 1d: Memory Tagging Extension register (_**umte**_) for (V)U-mode
 ,===
-umte[XLEN-1:15],umte[1:0]
+umte[XLEN-1:2],umte[1:0]
 WPRI,(V)U-mode PM
 ,===
 
@@ -104,8 +104,8 @@ WPRI,(V)U-mode PM
 
 ^.^| PM[1:1] ^.^| PM.Current |
 
- 0 – _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege level +
- 1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege level
+ 0 – _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege mode +
+ 1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege mode
 
 |===========================================================================================================================
 
@@ -117,21 +117,21 @@ MASK
 ,===
 
 [%header, cols=1*]
-.Figure 2b: Memory Tagging Extension register (_**hpmmask**_) for HS-MODE
-,===
-hpmmask[XLEN-1:0]
-MASK
-,===
-
-[%header, cols=1*]
-.Figure 2c: Memory Tagging Extension register (_**spmmask**_) for S-MODE
+.Figure 2b: Memory Tagging Extension register (_**spmmask**_) for HS/S-MODE
 ,===
 spmmask[XLEN-1:0]
 MASK
 ,===
 
 [%header, cols=1*]
-.Figure 2d: Memory Tagging Extension register (_**upmmask**_) for U-MODE
+.Figure 2c: Memory Tagging Extension register (_**vspmmask**_) for VS-MODE
+,===
+vspmmask[XLEN-1:0]
+MASK
+,===
+
+[%header, cols=1*]
+.Figure 2d: Memory Tagging Extension register (_**upmmask**_) for (V)U-MODE
 ,===
 upmmask[XLEN-1:0]
 MASK
@@ -147,21 +147,21 @@ BASE
 ,===
 
 [%header, cols=1*]
-.Figure 3b: Memory Tagging Extension register (_**hpmbase**_) for HS-MODE
-,===
-hpmbase[XLEN-1:0]
-BASE
-,===
-
-[%header, cols=1*]
-.Figure 3c: Memory Tagging Extension register (_**spmbase**_) for S-MODE
+.Figure 3b: Memory Tagging Extension register (_**spmbase**_) for HS/S-MODE
 ,===
 spmbase[XLEN-1:0]
 BASE
 ,===
 
 [%header, cols=1*]
-.Figure 3d: Memory Tagging Extension register (_**upmbase**_) for U-MODE
+.Figure 3c: Memory Tagging Extension register (_**vspmbase**_) for VS-MODE
+,===
+vspmbase[XLEN-1:0]
+BASE
+,===
+
+[%header, cols=1*]
+.Figure 3d: Memory Tagging Extension register (_**upmbase**_) for (V)U-MODE
 ,===
 upmbase[XLEN-1:0]
 BASE
@@ -171,16 +171,16 @@ BASE
 [[explanation]]
 ## Explanation
 
-_**MMTE**_ register fulfills two-fold function:
+_**xMTE**_ register fulfills two-fold function:
 
 1. Can only be programmable by more privileged mode (unless PM.Current bit is enabled) +
 2. Performs status register function for the current privilege mode +
 
-_PM_ bits from **_MMTE_** register are accessible in all modes ((V)U/VS/HS/M) and can be read to query if the PM feature is currently enforced. By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits.
-
-PM bits for VU and U mode are special. If virtualization extension is enabled, PM extension can be configured only for VU mode (using (V)U bits) but not for U mode. If virtualization extension is disabled, PM bit for (V)U are configuring PM extension for U mode. It is not allowed (and not possible) to enable PM extension for U mode when virtualization is enabled. In such environment (V)U bits are configuring PM for VU-mode.
+_PM_ bits from **_MMTE_** register are accessible in all modes ((V)U/VS/HS/S/M) and can be read to query if the PM feature is currently enforced. By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits.
 
 By default, the current CPU mode is using _**xPMMASK**_, _**xPMBASE**_ and _PM_ bits corresponding to it. When CPU is switching the mode, corresponding pair of _**xPMMASK**_, _**xPMBASE**_ and _PM_ bits are used.
+Special carefulness is necessary when VU and U mode are available. If virtualization extension is enabled, and hypervisor is not using _**xPMMASK**_ / _**xPMBASE**_ CSRs for its U-mode then context switches these registers when it context switches between VMs.
+If a hypervisor is using _**xPMMASK**_ / _**xPMBASE**_ CSRs for its U-mode, then it switches in its own pair before dropping down to U-mode. Later, HS/S-mode context switches in the pair for the VM that it returns to.
 
 If higher privileged code needs to use _**xPMMASK**_ and _**xPMBASE**_ from the lower privilege mode, there are two possible solutions: +
 1. Emulate equation 1. purely in software using _**xPMMASK**_ and  _**xPMBASE**_ CSRs from the desired privilege mode. +
@@ -197,5 +197,6 @@ _**MPMBASE**_ register fully two-fold function:
 1.  Based on PM bits configuration, it can be programmable by the higher privilege mode or by the current privilege mode
 2.  Performs status register function for the current privilege mode
 
-Any write access would be ignored if performed to the current _**xPMMASK**_, _**xPMBASE**_ and **_MMTE_** CSR registers and PM.Current is disabled.
+Any write access would be ignored if performed to the current _**xPMMASK**_, _**xPMBASE**_ and **_MMTE_** CSR registers and PM.Current is disabled. +
 
+PM extension allows various flavors of implementation. If PM is not desired in specific RISC-V mode, appropriate CSRs could be read-only and hardwired to 0.
