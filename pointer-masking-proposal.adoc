@@ -114,10 +114,10 @@ WPRI,(V)U-mode PM,WPRI
 .Table 2: Meaning of _XS_ bits for RV32, RV64 and RV128
 |===========================================================================================================================
 ^|*Status* ^|*Meaning*
-^.^| 0 | PM extension is not used
-^.^| 1 | _**xMTE**_ CSR is modified but not _**xPMMASK**_ neither _**xPMBASE**_
-^.^| 2 | _**xMTE**_ and _**xPMMASK**_ CSRs are modified but not _**xPMBASE**_
-^.^| 3 | All PM CSRs are modified (_**xMTE**_, _**xPMMASK**_ and _**xPMBASE**_)
+^.^| 0 | PM extension is not used (cannot write to any PM CSRs)
+^.^| 1 | PM CSRs are writeable but have the initial value (0)
+^.^| 2 | Some registers may have non-initial values, but those were saved before (clean)
+^.^| 3 | Some registers have unsaved values (dirty)
 |===========================================================================================================================
 
 [%header, cols=1*]
@@ -187,8 +187,9 @@ _**xMTE**_ register fulfills two-fold function:
 1. Can only be programmable by more privileged mode (unless PM.Current bit is enabled) +
 2. Performs status register function for the current privilege mode +
 
-_XS_ bits from **_MMTE_** register are only accessible in M, S and VS-mode. _XS_ field encodes the status of Pointer Masking extension in U and VU-mode. These bits can be checked by a context switch routine to quickly determine whether a state save or restore is required. XS field is automatically updated by the hardware when PM CSR registers are modified. Privileged code can directly modified XS bits to restore previousle save XS status (e.g. by the context restore routine).
+_XS_ bits from **_MMTE_** register are only accessible in M, S and VS-mode. _XS_ field encodes the status of Pointer Masking extension in U and VU-mode. These bits can be checked by a context switch routine to quickly determine whether a state save or restore is required. _XS_ field is automatically updated by the hardware when PM CSR registers are modified. Privileged code can directly modify _XS_ bits to restore previously saved _XS_ status (e.g. by the context restore routine).
 _XS_ bits in M-mode are desired for implementation without S-mode for determining how to perform context switch in U-mode. Otherwise, _XS_ bits in M-mode might mirror _XS_ bits in (V)S-mode or can be hardwired to 0.
+Additionally, any changes to the PM CSRs affect global _XS_ bits in the **mstatus** register.
 
 _PM_ bits from **_MMTE_** register are accessible in all modes ((V)U/VS/HS/S/M) and can be read to query if the PM feature is currently enforced. By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits.
 
