@@ -69,28 +69,28 @@ Table 2 explains the meaning of _XS_ bits for RV32, RV64 and RV128. +
 [%header, cols=5*]
 .Figure 1a: Memory Tagging Extension register (_**mmte**_) M-mode
 ,===
-mmte[XLEN-1:7],mmte[6:6],mmte[5:4],mmte[3:2],mmte[1:0]
-WPRI,M-mode PM.Enabled,HS/S-mode PM,(V)U-mode PM,XS bits
+mmte[XLEN-1:12],mmte[11:9],mmte[8:6],mmte[5:3],mmte[2:0]
+WPRI,M-mode PM,HS/S-mode PM,(V)U-mode PM,XS bits
 ,===
 
 [%header, cols=4*]
 .Figure 1b: Memory Tagging Extension register (_**smte**_) HS/S-mode
 ,===
-smte[XLEN-1:6],smte[5:4],smte[3:2],smte[1:0]
+smte[XLEN-1:9],smte[8:6],smte[5:3],smte[2:0]
 WPRI,HS/S-mode PM,U-mode PM,XS bits
 ,===
 
 [%header, cols=4*]
 .Figure 1c: Memory Tagging Extension register (_**vsmte**_) for VS-mode
 ,===
-vsmte[XLEN-1:6],vsmte[5:4],vsmte[3:2],vsmte[1:0]
+vsmte[XLEN-1:9],vsmte[8:6],vsmte[5:3],vsmte[2:0]
 WPRI,VS-mode PM,VU-mode PM,XS bits
 ,===
 
 [%header, cols=3*]
 .Figure 1d: Memory Tagging Extension register (_**umte**_) for (V)U-mode
 ,===
-umte[XLEN-1:4],umte[3:2],umte[1:0]
+umte[XLEN-1:6],umte[5:3],umte[2:0]
 WPRI,(V)U-mode PM,WPRI
 ,===
 
@@ -98,15 +98,25 @@ WPRI,(V)U-mode PM,WPRI
 .Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128
 |===========================================================================================================================
 ^|*PM Bits* ^|*Name* ^|*Meaning*
-^.^| PM[2:0] ^.^| PM.Enabled |
+
+^.^| PM[0:0] ^.^| PM.Enabled |
 
   0 – PM is disabled (_default_) +
   1 – PM is enabled
 
-^.^| PM[3:1] ^.^| PM.Current |
+^.^| PM[1:1] ^.^| PM.Current |
 
- 0 – _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege mode +
- 1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege mode
+ 0 – _**xPMMASK**_ and _**xPMBASE**_ registers can only be modified by the higher privilege mode (_default_) +
+ 1 – _**xPMMASK**_ and _**xPMBASE**_ registers can be modified by the same privilege mode +
+ +
+ _**Note**_: _PM.Current_ bit for M-mode (mmte[10:10]) is hardwired to 1
+
+^.^| PM[2:2] ^.^| PM.Instruction |
+
+ 0 – PM applies to Data accesses only (_default_) +
+ 1 – PM applies to Instruction and Data accesses +
+ +
+ _**Note**_: _PM.Instruction_ bit enables more use-cases. However, implementations can hardwire this bit to 0 if they choose not to implement instruction pointer masking
 
 |===========================================================================================================================
 
@@ -191,15 +201,16 @@ _XS_ bits from **_MMTE_** register are only accessible in M, S and VS-mode. _XS_
 _XS_ bits in M-mode are desired for implementation without S-mode for determining how to perform context switch in U-mode. Otherwise, _XS_ bits in M-mode might mirror _XS_ bits in (V)S-mode or can be hardwired to 0.
 Additionally, any changes to the PM CSRs affect global _XS_ bits in the **mstatus** register.
 
-_PM_ bits from **_MMTE_** register are accessible in all modes ((V)U/VS/HS/S/M) and can be read to query if the PM feature is currently enforced. By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits.
+_PM_ bits from **_MMTE_** register are accessible in all modes ((V)U/VS/HS/S/M) and can be read to query if the PM feature is currently enforced. By default, only higher privileged code can set the value for _PM_ bits. However, higher privileged code can enable _PM.Current_ bit for lower privileged code. In such scenario, current privilege code has a possibility to self-manage its own configuration of _PM_ bits. +
 
 By default, the current CPU mode is using _**xPMMASK**_, _**xPMBASE**_ and _PM_ bits corresponding to it. When CPU is switching the mode, corresponding pair of _**xPMMASK**_, _**xPMBASE**_ and _PM_ bits are used.
 Special carefulness is necessary when VU and U mode are available. If virtualization extension is enabled, and hypervisor is not using _**xPMMASK**_ / _**xPMBASE**_ CSRs for its U-mode then context switches these registers when it context switches between VMs.
 If a hypervisor is using _**xPMMASK**_ / _**xPMBASE**_ CSRs for its U-mode, then it switches in its own pair before dropping down to U-mode. Later, HS/S-mode context switches in the pair for the VM that it returns to.
 
-If higher privileged code needs to use _**xPMMASK**_ and _**xPMBASE**_ from the lower privilege mode, there are two possible solutions: +
-1. Emulate equation 1. purely in software using _**xPMMASK**_ and  _**xPMBASE**_ CSRs from the desired privilege mode. +
-2. If PM.Current is enabled it is possible to save the state of the current _**xPMMASK**_ and _**xPMBASE**_ CSRs and temporarily replace them with the desired one. At the end, original values can be restored. +
+If higher privileged code needs to use _**xPMMASK**_ and _**xPMBASE**_ from the lower privilege mode, there are two possible solutions:
+
+1.  Emulate equation 1. purely in software using _**xPMMASK**_ and  _**xPMBASE**_ CSRs from the desired privilege mode. +
+2.  If PM.Current is enabled it is possible to save the state of the current _**xPMMASK**_ and _**xPMBASE**_ CSRs and temporarily replace them with the desired one. At the end, original values can be restored. +
 
 
 _**MPMMASK**_ register fully two-fold function:
@@ -214,4 +225,5 @@ _**MPMBASE**_ register fully two-fold function:
 
 Any write access would be ignored if performed to the current _**xPMMASK**_, _**xPMBASE**_ and **_MMTE_** CSR registers and PM.Current is disabled. +
 
-PM extension allows various flavors of implementation. If PM is not desired in specific RISC-V mode, appropriate CSRs could be read-only and hardwired to 0.
+PM extension allows various flavors of implementation. If PM is not desired in specific RISC-V mode, appropriate CSRs could be read-only and hardwired to 0. +
+PM extension defines support for masking at least 24 bits on RV128 and RV64. On RV32 at least 8-bit mask must be supported. However, there is no upper-bound limitiation and XLEN-1 mask can be implemented.
