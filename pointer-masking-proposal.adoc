@@ -2,7 +2,7 @@
 
 # RISC-V Pointer Masking proposal
 
-RISC-V ISA Specification. Working draft, subject to change.
+RISC-V ISA Specification. Version: v0.1-draft.
 
 _Adam Zabrocki_, _Lee Campbell_, _Martin Maas_, _RISC-V TEE_ and _J Extension Task Groups_
 
