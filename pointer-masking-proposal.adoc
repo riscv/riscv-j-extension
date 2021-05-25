@@ -63,6 +63,8 @@ _**MPMBASE**_ layout can be found in Figure 3a, 3b, 3c and 3d for M, HS/S, VS an
 
 Table 1 explains the meaning of _PM_ bits for RV32, RV64 and RV128. +
 Table 2 explains the meaning of _XS_ bits for RV32, RV64 and RV128. +
+Table 3 contains the addresses for **xMTE**, **xPMBASE**, **xPMMASK**. +
+_**Note**_: Addresses in Table 3 are preliminary and could be changed during Opcode and Consistency review.
 
 :table-caption!:
 
@@ -129,6 +131,25 @@ WPRI,(V)U-mode PM,WPRI
 ^.^| 2 | Some registers may have non-initial values, but those were saved before (clean)
 ^.^| 3 | Some registers have unsaved values (dirty)
 |===========================================================================================================================
+
+[cols="15%,70%", options="header"]
+.Table 3: PM CSRs addresses
+|===========================================================================================================================
+^|*PM CSR name* ^|*Address*
+^.^| MMTE | 0x3c0
+^.^| SMTE | 0x1c0
+^.^| UMTE | 0x4c0
+^.^| VSMTE | 0x2c0
+^.^| MPMMASK | 0x3c1
+^.^| SPMMASK | 0x1c1
+^.^| UPMMASK | 0x4c1
+^.^| VSPMMASK | 0x2c1
+^.^| MPMBASE | 0x3c2
+^.^| SPMBASE | 0x1c2
+^.^| UPMBASE | 0x4c2
+^.^| VPMBASE | 0x2c2
+|===========================================================================================================================
+
 
 [%header, cols=1*]
 .Figure 2a: Memory Tagging Extension register (_**mpmmask**_) for M-mode
