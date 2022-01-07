@@ -1,0 +1,4 @@
+[#instructions,reftext="Instructions"]
+== Instructions
+
+This section introduces the mechanism's new instructions and associated semantics.

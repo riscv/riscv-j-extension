@@ -1,0 +1,6 @@
+[colophon]
+== Preface
+
+This document is released under the https://creativecommons.org/licenses/by/4.0/[Creative Commons Attribution 4.0 International License].
+
+The proposed mechanism is an independent ISA extension developed as part of the RISC-V J Extension. The temporary identifier of this extension is `Zjid` (subject to change).

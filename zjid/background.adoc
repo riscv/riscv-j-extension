@@ -1,0 +1,4 @@
+[#background,reftext="Background"]
+== Background
+
+This section describes the history and requirements of I/D synchronization on RISC-V and contrasts the new mechanism to Zifencei.

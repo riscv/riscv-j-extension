@@ -1,0 +1,4 @@
+[#usage,reftext="Usage"]
+== Usage Examples
+
+This section demonstrates different canonical use cases of the new mechanism.
