@@ -1,0 +1,11 @@
+[colophon]
+== Preface
+
+This document is released under the https://creativecommons.org/licenses/by/4.0/[Creative Commons Attribution 4.0 International License].
+
+The proposed mechanism is an independent ISA extension developed as part of the RISC-V J Extension. The identifier of this extension is `Zjpm`.
+
+**Authors:** Adam Zabrocki, Martin Maas, Lee Campbell, RISC-V TEE and J Extension Task Groups
+
+**Contributors:** Jecel Assumpcao, Allen Baum, Paul Donahue, Greg Favor, Andy Glew, John Ingalls, Christos Kotselidis, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the TEE and J Extension Task Groups
+

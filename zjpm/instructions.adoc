@@ -1,0 +1,76 @@
+[#instructions,reftext="Instructions"]
+== ISA Extension
+
+The `zjpm` extension adds a new PM configuration CSR called mpm. Restricted views of the mpm register appear as the hspm, spm and upm registers in the HS-mode, (V)S-mode and (V)U-mode ISAs respectively. This results in a total of four new CSRs being assigned to pointer masking. All four CSRs are read/write.
+
+The layout of mpm on RV64 can be found in Figure 1a, 1b, 1c and 1d for M, HS, (V)S and (V)U-mode. On RV32, the layout is equivalent but the **MPM.Ignore** bits occupy 4 bits instead of 6. On RV128 (if and when it is ratified), they may tentatively occupy 7 bits.
+
+Table 1 describes the meaning of the PM bits for RV64.
+
+:table-caption!:
+
+[%header, cols=5*]
+.Figure 1a: Pointer Masking register (_**mpm**_) M-mode
+,===
+mpm[XLEN-1:36],mpm[35:27],mpm[26:18],mpm[17:9],mpm[8:0]
+WPRI,M-mode PM,HS-mode PM,(V)S-mode PM,(V)U-mode PM
+,===
+
+[%header, cols=4*]
+.Figure 1b: Pointer Masking register (_**hspm**_) HS-mode
+,===
+hspm[XLEN-1:27],hspm[26:18],hspm[17:9],hspm[8:0]
+WPRI,HS-mode PM,(V)S-mode PM,(V)U-mode PM
+,===
+
+[%header, cols=3*]
+.Figure 1c: Pointer Masking register (_**spm**_) for VS-mode
+,===
+spm[XLEN-1:18],spm[17:9],spm[8:0]
+WPRI,(V)S-mode PM,(V)U-mode PM
+,===
+
+[%header, cols=2*]
+.Figure 1d: Pointer Masking register (_**upm**_) for (V)U-mode
+,===
+upm[XLEN-1:9],upm[8:0]
+WPRI,(V)U-mode PM
+,===
+
+[cols="15%,20%,65%", options="header"]
+.Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128
+|===========================================================================================================================
+^|*PM Bits* ^|*Name* ^|*Meaning*
+
+^.^| PM[0:0] ^.^| Enabled |
+
+ 0 – PM is disabled (_default_) +
+ 1 – PM is enabled +
+ +
+ The value of _MPM.Enabled_ controls if PM is enforced for the corresponding privilege mode. It allows for the fine grain control of the local PM state.
+
+^.^| PM[1:1] ^.^| Current |
+
+ 0 – _**Enabled**_ and _**Ignore**_ bits can only be modified by higher privilege modes (_default_) +
+ 1 – _**Enabled**_ and _**Ignore**_ bits can be modified by the same privilege mode +
+ +
+ _**Note**_: The _MPM.Current_ bit for M-mode (mpm[28:28]) is a WARL bit hardwired to 1
+
+^.^| PM[2:2] ^.^| Instruction |
+
+ 0 – PM applies to Data accesses only (_default_) +
+ 1 – PM applies to Instruction and Data accesses +
+ +
+ _**Note**_: The _MPM.Instruction_ bit enables more use-cases. However, implementations can hardwire this bit to 0 if they choose not to implement instruction pointer masking
+
+^.^| PM[8:3] ^.^| Ignore |
+
+The value of _MPM.Ignore_ defines how many contiguous top-bits are ignored, in binary. For RV64, its value may range from 0 to 63. A detailed description of _MPM.Ignore_ bits is provided in Chapter 2. This value was referred to as N above.
+
+|===========================================================================================================================
+
+_**Note**_: The _default_ state in the Table 1 references to the initial state of the PM after hart reset.
+
+Writing one of the CSRs may result in the **MPM.Ignore** bits being set to a different value than what was requested. It may also result in no update at all, which indicates that an unsupported value of N was requested. In this case, no other field is updated either.
+
+When a privilege mode's address translation mode changes, the corresponding PM bits are reset to 0. A privilege mode's address translation may change, for example, because the corresponding atp register was updated or because the privilege mode was changed while the corresponding atp register was holding a different address translation mode than when this privilege mode was last exited.
