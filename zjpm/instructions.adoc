@@ -1,76 +1,83 @@
 [#instructions,reftext="Instructions"]
 == ISA Extension
 
-The `zjpm` extension adds a new PM configuration CSR called mpm. Restricted views of the mpm register appear as the hspm, spm and upm registers in the HS-mode, (V)S-mode and (V)U-mode ISAs respectively. This results in a total of four new CSRs being assigned to pointer masking. All four CSRs are read/write.
+The `zjpm` extension adds four new configuration CSRs: upm, spm, vspm and mpm. All four CSRs are read/write. Pointer masking in (V)U-mode is controlled by upm, pointer masking in M-mode is controlled by mpm. The spm and vspm registers control pointer masking in S-mode and HS-mode, and follow the conventions established by the hypervisor extension. Specifically, spm controls pointer masking when running in unvirtualized (H)S-mode (which includes unvirtualized OS kernels as well as Type 1 and Type 2 hypervisors). When running in virtualized mode (VS), the content of the vspm register will be treated as the spm register.
 
-The layout of mpm on RV64 can be found in Figure 1a, 1b, 1c and 1d for M, HS, (V)S and (V)U-mode. On RV32, the layout is equivalent but the **MPM.Ignore** bits occupy 4 bits instead of 6. On RV128 (if and when it is ratified), they may tentatively occupy 7 bits.
+The layout of the four CSRs on RV64 can be found in Figure 1a, 1b, 1c and 1d for M, (H)S, VS and (V)U-mode. On RV32, the layout is equivalent but the **bits** fields occupy 5 bits instead of 6.
 
-Table 1 describes the meaning of the PM bits for RV64.
+[NOTE]
+====
+A portion of each register is reserved for future use by extensions that leverage pointer masking functionality. This will reduce the number of registers that need to be context-switched in the future. While the layout of the four registers is currently identical, this may change once these portions get used by future extensions.
+====
+
+The upm register is visible to all privilege modes. The spm register is visible to S-mode and M-mode (including HS/VS-mode if the hypervisor extension is present). The vspm register is visible to HS-mode and M-mode if the hypervisor extension is present. The mpm register is only visible to M-mode.
 
 :table-caption!:
 
 [%header, cols=5*]
-.Figure 1a: Pointer Masking register (_**mpm**_) M-mode
+.Figure 1a: Pointer Masking register for M-mode (_**mpm**_)
 ,===
-mpm[XLEN-1:36],mpm[35:27],mpm[26:18],mpm[17:9],mpm[8:0]
-WPRI,M-mode PM,HS-mode PM,(V)S-mode PM,(V)U-mode PM
-,===
-
-[%header, cols=4*]
-.Figure 1b: Pointer Masking register (_**hspm**_) HS-mode
-,===
-hspm[XLEN-1:27],hspm[26:18],hspm[17:9],hspm[8:0]
-WPRI,HS-mode PM,(V)S-mode PM,(V)U-mode PM
+mpm[XLEN-1:9], mpm[8:3], mpm[2], mpm[1], mpm[0]
+WPRI, mbits (WARL), minst (WARL), mself (WARL), menable (WARL)
 ,===
 
-[%header, cols=3*]
-.Figure 1c: Pointer Masking register (_**spm**_) for VS-mode
+[%header, cols=5*]
+.Figure 1a: Pointer Masking register for S-mode (_**spm**_)
 ,===
-spm[XLEN-1:18],spm[17:9],spm[8:0]
-WPRI,(V)S-mode PM,(V)U-mode PM
-,===
-
-[%header, cols=2*]
-.Figure 1d: Pointer Masking register (_**upm**_) for (V)U-mode
-,===
-upm[XLEN-1:9],upm[8:0]
-WPRI,(V)U-mode PM
+spm[XLEN-1:9], spm[8:3], spm[2], spm[1], spm[0]
+WPRI, sbits (WARL), sinst (WARL), sself (WARL), senable (WARL)
 ,===
 
-[cols="15%,20%,65%", options="header"]
-.Table 1: Meaning of _PM_ bits for RV32, RV64 and RV128
-|===========================================================================================================================
-^|*PM Bits* ^|*Name* ^|*Meaning*
+[%header, cols=5*]
+.Figure 1a: Pointer Masking register for virtualized S-mode (_**vspm**_)
+,===
+vspm[XLEN-1:9], vspm[8:3], vspm[2], vspm[1], vspm[0]
+WPRI, vsbits (WARL), vsinst (WARL), vsself (WARL), vsenable (WARL)
+,===
 
-^.^| PM[0:0] ^.^| Enabled |
+[%header, cols=5*]
+.Figure 1a: Pointer Masking register for U-mode (_**upm**_)
+,===
+upm[XLEN-1:9], upm[8:3], upm[2], upm[1], upm[0]
+WPRI, ubits (WARL), uinst (WARL), uself (WARL), uenable (WARL)
+,===
 
- 0 – PM is disabled (_default_) +
- 1 – PM is enabled +
- +
- The value of _MPM.Enabled_ controls if PM is enforced for the corresponding privilege mode. It allows for the fine grain control of the local PM state.
+We now describe the meaning of each of these fields. All fields default and reset to 0.
 
-^.^| PM[1:1] ^.^| Current |
+=== mbits/sbits/vsbits/ubits
 
- 0 – _**Enabled**_ and _**Ignore**_ bits can only be modified by higher privilege modes (_default_) +
- 1 – _**Enabled**_ and _**Ignore**_ bits can be modified by the same privilege mode +
- +
- _**Note**_: The _MPM.Current_ bit for M-mode (mpm[28:28]) is a WARL bit hardwired to 1
+These bits indicate the number of masked bits, referred to as N throughout the specification. This is a WARL field following the description in <<_allowed_values_of_n>>. Writing to this field will always result in the field being updated, but the value of N that is written may be smaller than what was requested. This does not affect any other field updates.
 
-^.^| PM[2:2] ^.^| Instruction |
+If pointer masking is disabled for this privilege mode (enable = 0), this field is ignored.
 
- 0 – PM applies to Data accesses only (_default_) +
- 1 – PM applies to Instruction and Data accesses +
- +
- _**Note**_: The _MPM.Instruction_ bit enables more use-cases. However, implementations can hardwire this bit to 0 if they choose not to implement instruction pointer masking
+=== minst/sinst/vsinst/uinst
 
-^.^| PM[8:3] ^.^| Ignore |
+If pointer masking is enabled for this privilege mode, inst=1 indicates that it applies to both instruction and data accesses. The semantics of this are described in <<_instruction_fetches>>. If inst=0, pointer masking only applies to data accesses. If pointer masking is disabled (enable = 0), this field is ignored.
 
-The value of _MPM.Ignore_ defines how many contiguous top-bits are ignored, in binary. For RV64, its value may range from 0 to 63. A detailed description of _MPM.Ignore_ bits is provided in Chapter 2. This value was referred to as N above.
+This is a WARL field. Pointer masking for instructions may be unsupported by the implementation. If so, an attempt to write 1 to this field may result in the field being set to 0. This does not affect any other field updates.
 
-|===========================================================================================================================
+=== mself/sself/vsself/uself
 
-_**Note**_: The _default_ state in the Table 1 references to the initial state of the PM after hart reset.
+This field controls whether a privilege mode can modify its own pointer masking CSR. If this field is set to 0 at the start of a write to the CSR and the current privilege mode is the one that this CSR corresponds to (e.g., U-mode for upm), the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
 
-Writing one of the CSRs may result in the **MPM.Ignore** bits being set to a different value than what was requested. It may also result in no update at all, which indicates that an unsupported value of N was requested. In this case, no other field is updated either.
+For M-mode, this field is hard-wired to 1 (with WARL semantics).
 
-When a privilege mode's address translation mode changes, the corresponding PM bits are reset to 0. A privilege mode's address translation may change, for example, because the corresponding atp register was updated or because the privilege mode was changed while the corresponding atp register was holding a different address translation mode than when this privilege mode was last exited.
+Note that setting CSRs of lower privilege modes is always allowed and CSRs of higher privilege modes are not visible.
+
+=== menable/senable/vsenable/uenable
+
+The value of this field controls whether pointer masking is active for the corresponding privilege mode.
+
+[NOTE]
+====
+Enabling and disabling is expected to be a more frequent operation than other field updates. The enable field has therefore been placed at the low end of the CSR, to allow pointer masking to be enabled/disabled with a single CSRRSI or CSRRCI instruction.
+====
+
+=== Field Invalidation
+
+When changes to the current address translation mode and/or the privilege mode would cause the current privilege mode's bits value to become illegal, it is immediately reset to the largest legal value of N under the new address translation mode.
+
+[NOTE]
+====
+The intention of this definition is to provide well-defined behavior that is consistent with the rules of the privileged specification. Software should prevent this case from occurring as it is likely to result in unintended behavior.
+====

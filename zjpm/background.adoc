@@ -11,38 +11,43 @@ We now define basic terms. Note that these rely on the definition of an “ignor
 
 * **Masked address:** An effective address after the ignore transformation has been applied to it.
 
-* **Address translation mode:** The MODE of the currently active address translation scheme as defined in the RISC-V privileged specification. This could, for example, refer to Bare, Sv39, Sv48, and Sv57. In accordance with the privileged specification, non-Bare translation modes are refered to as virtual-memory schemes.
+* **Address translation mode:** The MODE of the currently active address translation scheme as defined in the RISC-V privileged specification. This could, for example, refer to Bare, Sv39, Sv48, and Sv57. In accordance with the privileged specification, non-Bare translation modes are referred to as virtual-memory schemes.
 
 * **Address canonicity:** The RISC-V privileged spec defines canonicity of an address based on the privilege mode and address translation mode that is currently in use (e.g., Sv57, Sv48, Sv39, etc.). Canonicity enforces that for the translated addresses all bits in the unused portion of the address must be the same as the Most Significant Bit (MSB) of the used portion (for virtual addresses). For example, when page-based 48-bit virtual memory (Sv48) is used, instruction fetch addresses and load/store effective addresses, which are 64 bits, must have bits 63–48 all set to bit 47, or else a page-fault exception will occur. For untranslated addresses (i.e., for Bare and M-mode) canonicity requirement is for the high bits to be all zeros.
 
-* **NVBITS:** The upper bits within an address that have no effect on addressing memory and are only used for canonicity checks. For example, in Sv48, these are bits 63-48.
+* **NVBITS:** The upper bits within an address that have no effect on addressing memory and are only used for canonicity checks. These bits depend on the currently active address translation mode. For example, in Sv48, these are bits 63-48. For Bare mode, this is implementation-dependent.
 
-* **VBITS:** The bits within an address that affect which memory is addressed.
+* **VBITS:** The bits within an address that affect which memory is addressed. If virtual memory is enabled, these are the bits of an address which are used to index into page tables.
 
 === The “Ignore” Transformation
 
-The ignore transformation (Listing 1) is expressed independently of the current address translation mode. Intuitively, it replaces the top N bits with the sign extension of the N+1st bit from the top. If N is smaller or equal to NVBITS for the current address translation mode, this is equivalent to ignoring the NVBITS of the address, without actually performing the sign extension operation.
+The ignore transformation (Listing 1) is expressed independently of the current address translation mode. Conceptually, it replaces the top N bits with the sign extension of the N+1st bit from the top.
 
 [source]
-."Ignore" Transformation
+."Ignore" Transformation expressed in Verilog code.
 ----
 transformed_effective_address =
   {{N{effective_address[XLEN-N-1]}}, effective_address[XLEN-N-1:0]}
 ----
 
-When pointer masking is enabled, this transformation will be applied to every explicit memory access that is subject to the regular memory access path (i.e., subject to the current address translation mode). This includes, for example, atomics operations and floating point loads/stores. The transformation *does not* apply to implicit accesses such as page table walks, with the exception of instruction fetches if the corresponding pointer masking feature is enabled.
+[NOTE]
+====
+If N is smaller or equal to NVBITS for the current address translation mode, this is equivalent to ignoring a subset of NVBITS. This enables cheap implementations that disable canonicity checks in the MMU instead of performing the sign extension.
+====
 
-When pointer masking is enabled, address canonicity checks will be disabled.
+When pointer masking is enabled, this transformation will be applied to every explicit memory access (i.e., subject to the current address translation mode). This includes, for example, atomics operations and floating point loads/stores. The transformation *does not* apply to implicit accesses such as page table walks, with the exception of instruction fetches if the corresponding pointer masking feature is enabled. The full set of accesses that pointer masking applies to is shown in <<_memory_accesses_subject_to_pointer_masking>>.
 
-=== Allowed values of N
+[WARNING]
+====
+Pointer masking does not change the underlying address generation logic or permission checks. For data, pointer masking is semantically equivalent to replacing a subset of instructions (e.g., loads and stores) with an instruction sequence that applies the ignore operation to the target address of this instruction and then applies the instruction to the masked address. References to address translation and other implemenation details in the text are primarily to explain design decisions and common implementation patterns.
+====
 
-Ignoring bits is deeply connected to the address translation mode (e.g., Bare, Sv48, Sv57). In particular, applying the above transformation is cheap if it covers only the NVBITS (as it is equivalent to switching off canonicity checks) but expensive if the masked bits extend into the VBITS portion of the address (as it requires performing the actual sign extension).
+Note that pointer masking is purely an arithmetic operation on the address that makes no assumption about the meaning of the addresses it is applied to. Pointer masking with N bits always has the same effect, independently of the underlying address translation mode or privilege mode. This ensures that code that relies on pointer masking does not need to be aware of the environment it runs in once pointer masking has been enabled. For example, the same application or library code can run in user mode, supervisor mode or M mode (with different address translation modes) without modification.
 
-Systems may therefore choose to disallow certain values of N. The minimum set of values of N that must be supported may be defined by an ISA profile. The supported values of N may differ between privilege modes and between address translation modes.
-
-When trying to enable pointer masking and setting a value of N in the corresponding CSR (Chapter 3), an implementation may choose a different value of N and reflect this in the updated register value. It may choose a larger number of bits than the original requested number if and only if the additional bits that are masked have no impact on addressing under the current privilege mode and address translation mode. If a smaller value of N is returned, the implementation should choose the largest supported value smaller or equal to the requested number of masked bits.
-
-We expect that the initial profile will only mandate that systems support one value of N: The number of NVBITS of the current privilege mode and address translation mode (which is equivalent to disabling the canonicity check).
+[NOTE]
+====
+A common scenario for such code is that addresses are generated by mmap system calls. These system calls abstract away the details of the underlying address translation mode from the application code.
+====
 
 === Example
 
@@ -51,18 +56,71 @@ Table 1 shows an example of address translation when PM is enabled for RV64 unde
 [%header, cols="25%,75%", options="header"]
 .Example of PM address translation for RV64 under Sv57
 |===
-|Page based profile|Sv57 on RV64
-|Effective Address|0xAAFFFFFF12345678
-
+|Page-based profile|Sv57 on RV64
+|Effective Address|0xAAFFFFFF12345678 +
 NVBITS[1010101]  VBITS[01111111111111111111111110001...000]
 |N|8
-|Mask|0x00FFFFFFFFFFFFFF
-
+|Mask|0x00FFFFFFFFFFFFFF +
 NVBITS[0000000]  VBITS[01111111111111111111111111111...111]
 |N+1st bit from the top|1
-|Transformed address|0xFFFFFFFF12345678
-
+|Transformed address|0xFFFFFFFF12345678 +
 NVBITS[1111111]  VBITS[11111111111111111111111110001...000]
 
 |===
 
+=== Allowed Values of N
+
+From an implementation perspective, ignoring bits is deeply connected to the address translation mode (e.g., Bare, Sv48, Sv57). In particular, applying the above transformation is cheap if it covers only the NVBITS (as it is equivalent to switching off canonicity checks) but expensive if the masked bits extend into the VBITS portion of the address (as it requires performing the actual sign extension). Similarly, when running in Bare mode, it is common for implementations to not use a particular number of bits at the top of the physical address range and pin them to zero. Applying the ignore transformation to all but the lowest of those bits is cheap as well (the lowest bit is still pinned to zero to ensure that sign extension will result in a valid physical address where all the top bits are zeros).
+
+Systems may therefore choose to disallow certain values of N. The minimum set of values of N that must be supported may be defined by an ISA profile. The supported values of N may differ between privilege modes and between address translation modes but must otherwise be consistent.
+
+When trying to enable pointer masking and setting a value of N in the corresponding CSR (Chapter 3), an implementation may choose a different value of N and reflect this in the updated register value. The behavior must be consistent: For a given pair of (address translation mode, privilege mode) there is an implementation-specific, fixed maximum number of supported mask bits (Nmax). All values of N <= Nmax must be supported. If software tries to set N to a value larger than Nmax, the implementation will set N=Nmax. This follows the WARL CSR pattern (see Chapter 3 for details).
+
+We expect that the initial profile will only mandate that systems support Nmax to be the number of NVBITS of the current privilege mode and address translation mode (which is equivalent to disabling the canonicity check). For Bare address translation, the profile will choose an Nmax such that the top Nmax+1 bits of the physical address space can be pinned to zero without substantially impacting implementations. Systems may choose to support a larger Nmax (which would encroach on the VBITS and may be more expensive to implement), but this would not initially be required by the profile.
+
+=== Pointer Masking and Privilege Modes
+
+Pointer masking is controlled separately for different privilege modes. Different privilege modes may have different pointer masking settings active simultaneously and the hardware will automatically apply the pointer masking settings of the currently active privilege mode. A delegation mechanism allows higher privilege modes to optionally restrict lower privilege modes from changing their own pointer masking settings (Chapter 3).
+
+[NOTE]
+====
+Since pointer masking forms the foundation for security-related mechanisms, configurability per-privilege mode is critical for avoiding a window in time (e.g., when jumping into a trap handler) when the incorrect masking is applied. This will be particularly important for the future sandboxing use case, where such a window would allow code to escape its sandbox.
+====
+
+Note that the pointer masking setting that is applied only depends on the active privilege mode, not on the address that is being masked. Some operating systems (e.g., Linux) may use certain bits in the address to disambiguate between different types of addresses (e.g., kernel and user-mode addresses). Pointer masking _does not_ take these semantics into account and is purely an arithmetic operation on the address it is given.
+
+Similarly, the pointer masking extension does not mandate which values of N are allowed beyond what is described in <<_allowed_values_of_n>>. However, not all values of N make sense. For example, an operating system's ABI may mandate that (e.g.,) user mode should never mask more bits than kernel mode.
+
+[NOTE]
+====
+Linux places kernel addresses in the upper half of the address space and user addresses in the lower half of the address space. As such, the MSB can be used to identify the type of a particular address. With pointer masking enabled, this role is now played by the N+1st bit and code that checks whether a pointer is a kernel or a user address needs to inspect this bit instead. Since pointer masking is defined based on sign extension, no other parts of the operating system need to be changed since the masked address will still point to the correct part of the address space for both kernel and user addresses. The operating system needs to ensure to keep the N+1st bit available for determining the type of address (e.g., mmap calls on Linux would set this bit to zero). To achieve this while using the full virtual address space of a given address translation mode, it may request N to be smaller than the maximum N available (Nmax). In addition, the Linux ABI may mandate that the MSB of the address is not used for tagging and replicates the N+1st bit; this is necessary since the Linux kernel contains many places where kernel and user addresses are disambiguated by comparing them to a threshold.
+====
+
+=== Memory Accesses Subject to Pointer Masking
+
+Pointer masking applies to all explicit memory accesses in the Base and Privileged ISAs:
+
+* **Base Instruction Set**: LB, LH, LW, LBU, LHU, LWU, LD, SB, SH, SW, SD.
+* **Atomics**: All instructions in RV32A and RV64A.
+* **Floating Point**: FLW, FLD, LFQ, FSW, FSD, FSQ.
+* **Compressed**: All instructions mapping to any of the above, and C.LWSP, C.LDSP, C.LQSP, C.FLWSP, C.FLDSP, C.SWSP, C.SDSP, C.SQSP, C.FSWSP, C.FSDSP.
+* **Memory Management**: FENCE, FENCE.I (if the currently unused address fields become enabled in the future), SFENCE.\*, HFENCE.*, SINVAL.\*, HINVAL.*.
+
+Pointer masking _does not_ apply to HLV, HLVX and HSV instructions.
+
+In the absence of additional specification changes, pointer masking only applies to the above instructions. ISA extensions decide individually which of their instructions are subject to pointer masking. By default, it will not apply and thus not change any existing behavior.
+
+[NOTE]
+====
+If pointer masking is used for sandboxing, any extension that does not apply pointer masking cannot be used within sandboxed code as this would circumvent the sandbox. Further, not applying pointer masking would significantly reduce the benefit of other extensions such as CMOs, as the masking operation would need to be applied manually.
+====
+
+Pointer masking only applies to accesses generated by instructions on the CPU (including CPU extensions such as an FPU). For example, it does not apply to accesses generated by the IOMMU or devices.
+
+Values written to CSRs (e.g., stval) do not automatically have the ignore transformation applied before doing so. It is the responsibility of software to apply the ignore operation manually to such values before writing them into a CSR.
+
+=== Instruction Fetches
+
+Pointer masking can optionally be applied to instruction fetches. The profile mandates whether or not this feature needs to be supported, and software discovers the availability of this feature using WARL fields in the pointer masking configuration CSRs. On implementations where the feature is available, it can be enabled or disabled by software.
+
+When enabled, the ignore operation applies to every instruction fetch, including those resulting from monotonic PC increases due to straight line execution, control transfers (e.g., branches and direct/indirect jumps and uret/sret/mret). URET, SRET and MRET apply the pointer masking setting of the privilege mode they are returning to.
