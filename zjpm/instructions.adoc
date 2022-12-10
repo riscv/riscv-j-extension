@@ -1,7 +1,7 @@
 [#instructions,reftext="Instructions"]
 == ISA Extension
 
-The `zjpm` extension adds four new configuration CSRs: upm, spm, vspm and mpm. All four CSRs are read/write. Pointer masking in (V)U-mode is controlled by upm, pointer masking in M-mode is controlled by mpm. The spm and vspm registers control pointer masking in S-mode and HS-mode, and follow the conventions established by the hypervisor extension. Specifically, spm controls pointer masking when running in unvirtualized (H)S-mode (which includes unvirtualized OS kernels as well as Type 1 and Type 2 hypervisors). When running in virtualized mode (VS), the content of the vspm register will be treated as the spm register.
+The `zjpm` extension adds four new configuration CSRs: upm, spm, vspm and mpm. All four CSRs are read/write. Pointer masking in (V)U-mode is controlled by upm, pointer masking in M-mode is controlled by mpm. The spm and vspm registers control pointer masking in HS/S-mode and VS-mode, and follow the conventions established by the hypervisor extension. Specifically, spm controls pointer masking when running in unvirtualized (H)S-mode (which includes unvirtualized OS kernels as well as Type 1 and Type 2 hypervisors). When running in virtualized mode (VS), the content of the vspm register will be treated as the spm register.
 
 The layout of the four CSRs on RV64 can be found in Figure 1a, 1b, 1c and 1d for M, (H)S, VS and (V)U-mode. On RV32, the layout is equivalent but the **bits** fields occupy 5 bits instead of 6.
 
