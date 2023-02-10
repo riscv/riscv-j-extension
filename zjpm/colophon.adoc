@@ -3,7 +3,7 @@
 
 This document is released under the https://creativecommons.org/licenses/by/4.0/[Creative Commons Attribution 4.0 International License].
 
-The proposed mechanism is an independent ISA extension developed as part of the RISC-V J Extension. The identifier of this extension is `Zjpm`.
+The proposed mechanism is an independent ISA extension developed as part of the RISC-V J Extension. This document defines a set of individual subextensions (`Zjpmu`, `Zjpms`, `Zjpmm`, `Zjpmbare16`, `Zjpminst`) that are collectively referred to by the identifier `Zjpm`.
 
 **Authors:** Adam Zabrocki, Martin Maas, Lee Campbell, RISC-V TEE and J Extension Task Groups
 
