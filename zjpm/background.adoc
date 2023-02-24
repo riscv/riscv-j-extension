@@ -11,7 +11,7 @@ We now define basic terms. Note that these rely on the definition of an “ignor
 
 * **Masked address:** An effective address after the ignore transformation has been applied to it.
 
-* **Address translation mode:** The MODE of the currently active address translation scheme as defined in the RISC-V privileged specification. This could, for example, refer to Bare, Sv39, Sv48, and Sv57. In accordance with the privileged specification, non-Bare translation modes are referred to as virtual-memory schemes.
+* **Address translation mode:** The MODE of the currently active address translation scheme as defined in the RISC-V privileged specification. This could, for example, refer to Bare, Sv39, Sv48, and Sv57. In accordance with the privileged specification, non-Bare translation modes are referred to as virtual-memory schemes. For the purpose of this specification, M-mode translation is treated as equivalent to Bare.
 
 * **Address canonicity:** The RISC-V privileged spec defines canonicity of an address based on the privilege mode and address translation mode that is currently in use (e.g., Sv57, Sv48, Sv39, etc.). Canonicity enforces that for the translated addresses all bits in the unused portion of the address must be the same as the Most Significant Bit (MSB) of the used portion (for virtual addresses). For example, when page-based 48-bit virtual memory (Sv48) is used, instruction fetch addresses and load/store effective addresses, which are 64 bits, must have bits 63–48 all set to bit 47, or else a page-fault exception will occur. This definition only applies to virtual addresses.
 
@@ -42,7 +42,7 @@ When pointer masking is enabled, this transformation will be applied to every ex
 Pointer masking does not change the underlying address generation logic or permission checks. For data, pointer masking is semantically equivalent to replacing a subset of instructions (e.g., loads and stores) with an instruction sequence that applies the ignore operation to the target address of this instruction and then applies the instruction to the masked address. References to address translation and other implemenation details in the text are primarily to explain design decisions and common implementation patterns.
 ====
 
-Note that pointer masking is purely an arithmetic operation on the address that makes no assumption about the meaning of the addresses it is applied to. Pointer masking with the same value of N always has the same effect. This ensures that code that relies on pointer masking does not need to be aware of the environment it runs in once pointer masking has been enabled, as long as the value of N is known. For example, the same application or library code can run in user mode, supervisor mode or M mode (with different address translation modes) without modification.
+Note that pointer masking is purely an arithmetic operation on the address that makes no assumption about the meaning of the addresses it is applied to. Pointer masking with the same value of N always has the same effect. This ensures that code that relies on pointer masking does not need to be aware of the environment it runs in once pointer masking has been enabled, as long as the value of N is known. For example, the same application or library code can run in user mode, supervisor mode or M-mode (with different address translation modes) without modification.
 
 [NOTE]
 ====
@@ -70,9 +70,9 @@ NVBITS[1111111]  VBITS[11111111111111111111111110001...000]
 
 === Determining the Value of N
 
-From an implementation perspective, ignoring bits is deeply connected to the address translation mode (e.g., Bare, Sv48, Sv57). In particular, applying the above transformation is cheap if it covers only the NVBITS (as it is equivalent to switching off canonicity checks) but expensive if the masked bits extend into the VBITS portion of the address (as it requires performing the actual sign extension). Similarly, when running in Bare mode, it is common for implementations to not use a particular number of bits at the top of the physical address range and pin them to zero. Applying the ignore transformation to all but the lowest of those bits is cheap as well (the lowest bit is still pinned to zero to ensure that sign extension will result in a valid physical address where all the top bits are zeros).
+From an implementation perspective, ignoring bits is deeply connected to the address translation mode (e.g., Bare, Sv48, Sv57). In particular, applying the above transformation is cheap if it covers only the NVBITS (as it is equivalent to switching off canonicity checks) but expensive if the masked bits extend into the VBITS portion of the address (as it requires performing the actual sign extension). Similarly, when running in Bare or M mode, it is common for implementations to not use a particular number of bits at the top of the physical address range and pin them to zero. Applying the ignore transformation to all but the lowest of those bits is cheap as well (the lowest bit is still pinned to zero to ensure that sign extension will result in a valid physical address where all the top bits are zeros).
 
-The specified extension **does not** support N to be configurable. Instead, N is a static function of the currently active address translation mode. Specifically, N is the number of NVBITS of this address translation mode (e.g., 16 for Sv48) if it is a virtual-memory scheme. Pointer masking in Bare address translation mode is a separate subextension (`Zjpmbare16`). If this subextension is present, N is hardcoded to be 16 in Bare (otherwise it is 0).
+The specified extension **does not** support N to be configurable. Instead, N is a static function of the currently active address translation mode. Specifically, N is the number of NVBITS of this address translation mode (e.g., 16 for Sv48) if it is a virtual-memory scheme. Pointer masking in Bare and M-mode address translation mode is a separate subextension (`Zjpmbare16`). If this subextension is present, N is hardcoded to be 16 in Bare and M-mode (otherwise it is 0).
 
 [NOTE]
 ====
@@ -116,10 +116,16 @@ If pointer masking is used for sandboxing, any extension that does not apply poi
 
 Pointer masking only applies to accesses generated by instructions on the CPU (including CPU extensions such as an FPU). For example, it does not apply to accesses generated by the IOMMU or devices.
 
-Note that the above definitions mean that pointer masking **does not** apply to addresses that emanate from CSRs (e.g., stval, stvec, etc.). Also note that pointer masking has no impact on values that are written into CSRs or other registers. If software needs to write a tagged address into a CSR, it has to remove this tag manually before writing the value into the CSR.
+Misaligned accesses are supported, subject to the same limitations that would exist in the absence of `Zjpm`. If a misaligned access crosses the boundary to the masked bits, a page-fault exception will occur. This is identical to the behavior in the absence of pointer masking, since such an operation would result in multiple accesses, at least one of which would be to a non-canonical address.
+
+No pointer masking operations are applied when software reads/writes to CSRs meant to hold addresses. If software needs to put tagged pointers into such CSRs, it can do so. However, instruction fetch, data load or data store operations based on those addresses are subject to pointer masking only if they are explicitly included (<<_memory_accesses_subject_to_pointer_masking>>) and pointer masking is enabled for this privilege mode. For example, software is free to write tagged or untagged pointer to `stvec`, but when a trap delivery happens (due to an exception or interrupt), pointer masking will only be applied to the address if S-mode has instruction pointer masking enabled.
 
 === Instruction Fetches
 
 Pointer masking can optionally be applied to instruction fetches. The availability of this feature is determined by the presence of the `Zjpminst` subextension. On implementations where the feature is available, it can be enabled or disabled by software.
 
-When enabled, the ignore operation applies to every instruction fetch, including those resulting from monotonic PC increases due to straight line execution, control transfers (e.g., branches and direct/indirect jumps and uret/sret/mret). URET, SRET and MRET apply the pointer masking setting of the privilege mode they are returning to.
+When enabled, the ignore operation applies to every instruction fetch, including those resulting from monotonic PC increases due to straight line execution, control transfers (e.g., branches and direct/indirect jumps and uret/sret/mret).
+
+URET, SRET and MRET apply the pointer masking setting of the privilege mode they are returning to. Similarly, other privilege mode transfers (e.g., traps or exceptions) apply the pointer masking setting of the mode they are entering.
+
+During trap delivery, `stval` will contain the unmasked pointer, even when instruction pointer masking is enabled.

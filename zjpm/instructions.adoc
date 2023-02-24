@@ -35,32 +35,36 @@ The upm register is visible to all privilege modes. The spm register is visible 
 [%header, cols=4*]
 .Figure 1a: Pointer Masking register for M-mode (_**mpm**_)
 ,===
-mpm[XLEN-1:3], mpm[2], mpm[1], mpm[0]
-WPRI, minst (WARL), mself (WARL), menable (WARL)
+mpm[XLEN-1:2], mpm[1], mpm[0]
+WPRI, minst (WARL), menable (WARL)
 ,===
 
 [%header, cols=4*]
-.Figure 1a: Pointer Masking register for S-mode (_**spm**_)
+.Figure 1b: Pointer Masking register for S-mode (_**spm**_)
 ,===
-spm[XLEN-1:3], spm[2], spm[1], spm[0]
-WPRI, sinst (WARL), sself (WARL), senable (WARL)
-,===
-
-[%header, cols=4*]
-.Figure 1a: Pointer Masking register for virtualized S-mode (_**vspm**_)
-,===
-vspm[XLEN-1:3], vspm[2], vspm[1], vspm[0]
-WPRI, vsinst (WARL), vsself (WARL), vsenable (WARL)
+spm[XLEN-1:2], spm[1], spm[0]
+WPRI, sinst (WARL), senable (WARL)
 ,===
 
 [%header, cols=4*]
-.Figure 1a: Pointer Masking register for U-mode (_**upm**_)
+.Figure 1c: Pointer Masking register for virtualized S-mode (_**vspm**_)
 ,===
-upm[XLEN-1:3], upm[2], upm[1], upm[0]
-WPRI, uinst (WARL), uself (WARL), uenable (WARL)
+vspm[XLEN-1:2], vspm[1], vspm[0]
+WPRI, vsinst (WARL), vsenable (WARL)
+,===
+
+[%header, cols=4*]
+.Figure 1d: Pointer Masking register for U-mode (_**upm**_)
+,===
+upm[XLEN-1:2], upm[1], upm[0]
+WPRI, uinst (WARL), uenable (WARL)
 ,===
 
 We now describe the meaning of each of these fields. All fields default and reset to 0.
+
+=== menable/senable/vsenable/uenable
+
+This field controls whether pointer masking is active for the corresponding privilege mode. A value of 1 indicates that pointer masking is enabled.
 
 === minst/sinst/vsinst/uinst
 
@@ -68,22 +72,16 @@ If pointer masking is enabled for this privilege mode, inst=1 indicates that it 
 
 This is a WARL field. Pointer masking for instructions is only supported if the `Zjpminst` extension is present. If it is not present, an attempt to write 1 to this field may result in the field being set to 0. This does not affect any other field updates.
 
-=== mself/sself/vsself/uself
-
-This field controls whether a privilege mode can modify its own pointer masking CSR. If this field is set to 0 at the start of a write to the CSR and the current privilege mode is the one that this CSR corresponds to (e.g., U-mode for upm), the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
-
-For M-mode, this field is hard-wired to 1 (with WARL semantics).
-
-Note that setting CSRs of lower privilege modes is always allowed and CSRs of higher privilege modes are not visible.
-
-=== menable/senable/vsenable/uenable
-
-The value of this field controls whether pointer masking is active for the corresponding privilege mode.
-
 [NOTE]
 ====
 Enabling and disabling is expected to be a more frequent operation than other field updates. The enable field has therefore been placed at the low end of the CSR, to allow pointer masking to be enabled/disabled with a single CSRRSI or CSRRCI instruction.
 ====
+
+=== Additions to menvcfg, senvcfg and henvcfg
+
+`Zjpm` reserves two new 1-bit WARL fields (`spmself` and `upmself`) in `menvcfg`. It also reserves a 1-bit WARL field in `henvcfg` and `senvcfg` that aliases `upmself` (as S-mode does not have access to `menvcfg`).
+
+The fields control whether a privilege mode can modify its own pointer masking CSR. If this field is set to 0 at the start of a write to the CSR and the current privilege mode is the one that this CSR corresponds to (e.g., U-mode for upm), the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
 
 === Number of Masked Bits
 
@@ -98,6 +96,7 @@ Sv48, 16
 Sv57, 7
 Sv64, 0 (to be addressed in future standards)
 Bare, 16 if Zjpmbare16 is present (0 otherwise)
+M-mode, 16 if Zjpmbare16 is present (0 otherwise)
 ,=== 
 
 [NOTE]
