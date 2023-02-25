@@ -32,28 +32,28 @@ The upm register is visible to all privilege modes. The spm register is visible 
 
 :table-caption!:
 
-[%header, cols=4*]
+[%header, cols=3*]
 .Figure 1a: Pointer Masking register for M-mode (_**mpm**_)
 ,===
 mpm[XLEN-1:2], mpm[1], mpm[0]
 WPRI, minst (WARL), menable (WARL)
 ,===
 
-[%header, cols=4*]
+[%header, cols=3*]
 .Figure 1b: Pointer Masking register for S-mode (_**spm**_)
 ,===
 spm[XLEN-1:2], spm[1], spm[0]
 WPRI, sinst (WARL), senable (WARL)
 ,===
 
-[%header, cols=4*]
+[%header, cols=3*]
 .Figure 1c: Pointer Masking register for virtualized S-mode (_**vspm**_)
 ,===
 vspm[XLEN-1:2], vspm[1], vspm[0]
 WPRI, vsinst (WARL), vsenable (WARL)
 ,===
 
-[%header, cols=4*]
+[%header, cols=3*]
 .Figure 1d: Pointer Masking register for U-mode (_**upm**_)
 ,===
 upm[XLEN-1:2], upm[1], upm[0]
@@ -79,7 +79,7 @@ Enabling and disabling is expected to be a more frequent operation than other fi
 
 === Additions to menvcfg, senvcfg and henvcfg
 
-`Zjpm` reserves two new 1-bit WARL fields (`spmself` and `upmself`) in `menvcfg`. It also reserves a 1-bit WARL field in `henvcfg` and `senvcfg` that aliases `upmself` (as S-mode does not have access to `menvcfg`).
+`Zjpm` reserves two new 1-bit WARL fields (`spmself` and `upmself`) in `menvcfg`. It also reserves a 1-bit WARL field in `henvcfg` and `senvcfg` that aliases `upmself` (as S-mode cannot access `menvcfg`).
 
 The fields control whether a privilege mode can modify its own pointer masking CSR. If this field is set to 0 at the start of a write to the CSR and the current privilege mode is the one that this CSR corresponds to (e.g., U-mode for upm), the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
 
