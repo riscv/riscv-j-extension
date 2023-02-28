@@ -5,9 +5,9 @@
 
 As indicated in <<_introduction>>, `Zjpm` is a conceptual way of referring to a number of separate subextensions. This approach is used to capture optionality of features in the extension. Profiles and implementations may choose to support an arbitrary subset of these extensions:
 
-* **Zjpmu**: U/VU-mode pointer masking is available if and only if this extension is present.
-* **Zjpms**: S/HS/VS-mode pointer masking is available if and only if this extension is present.
-* **Zjpmm**: M-mode pointer masking is available if and only if this extension is present.
+* **Zjpm**: U/VU-mode pointer masking is available if and only if this extension is present.
+* **Ssjpm**: S/HS/VS-mode pointer masking is available if and only if this extension is present.
+* **Smjpm**: M-mode pointer masking is available if and only if this extension is present.
 * **Zjpmbare16**: Pointer masking applies to the Bare address translation mode, across all supported privilege modes. If this extension is present, N is hardcoded to 16 in Bare address translation mode. If it is not present, N is hardcoded to 0 in Bare address translation mode.
 * **Zjpminst**: Pointer masking for instructions is supported, across all supported privilege modes. In the absence of this extension, the corresponding CSR bits (`*inst`) are hard-wired to 0.
 
@@ -15,9 +15,9 @@ As indicated in <<_introduction>>, `Zjpm` is a conceptual way of referring to a 
 
 Zjpm adds up to four new configuration CSRs, depending on which subextensions are present. The following CSRs are added for each of the subextensions:
 
-* **Zjpmu**: upm
-* **Zjpms**: spm, vspm
-* **Zjpmm**: mpm
+* **Zjpm**: upm
+* **Ssjpm**: spm, vspm
+* **Smjpm**: mpm
 
 All four CSRs are read/write. Pointer masking in (V)U-mode is controlled by upm, pointer masking in M-mode is controlled by mpm. The spm and vspm registers control pointer masking in HS/S-mode and VS-mode, and follow the conventions established by the hypervisor extension. Specifically, spm controls pointer masking when running in unvirtualized (H)S-mode (which includes unvirtualized OS kernels as well as Type 1 and Type 2 hypervisors). When running in virtualized mode (VS), the content of the vspm register will be treated as the spm register.
 
@@ -36,39 +36,39 @@ The upm register is visible to all privilege modes. The spm register is visible 
 .Figure 1a: Pointer Masking register for M-mode (_**mpm**_)
 ,===
 mpm[XLEN-1:2], mpm[1], mpm[0]
-WPRI, minst (WARL), menable (WARL)
+WPRI, mipmen (WARL), mxpmen (WARL)
 ,===
 
 [%header, cols=3*]
 .Figure 1b: Pointer Masking register for S-mode (_**spm**_)
 ,===
 spm[XLEN-1:2], spm[1], spm[0]
-WPRI, sinst (WARL), senable (WARL)
+WPRI, sipmen (WARL), sxpmen (WARL)
 ,===
 
 [%header, cols=3*]
 .Figure 1c: Pointer Masking register for virtualized S-mode (_**vspm**_)
 ,===
 vspm[XLEN-1:2], vspm[1], vspm[0]
-WPRI, vsinst (WARL), vsenable (WARL)
+WPRI, vsipmen (WARL), vsxpmen (WARL)
 ,===
 
 [%header, cols=3*]
 .Figure 1d: Pointer Masking register for U-mode (_**upm**_)
 ,===
 upm[XLEN-1:2], upm[1], upm[0]
-WPRI, uinst (WARL), uenable (WARL)
+WPRI, uipmen (WARL), uxpmen (WARL)
 ,===
 
 We now describe the meaning of each of these fields. All fields default and reset to 0.
 
-=== menable/senable/vsenable/uenable
+=== mxpmen/sxpmen/vsxpmen/uxpmen
 
 This field controls whether pointer masking is active for the corresponding privilege mode. A value of 1 indicates that pointer masking is enabled.
 
-=== minst/sinst/vsinst/uinst
+=== mipmen/sipmen/vsipmen/uipmen
 
-If pointer masking is enabled for this privilege mode, inst=1 indicates that it applies to both instruction and data accesses. The semantics of this are described in <<_instruction_fetches>>. If inst=0, pointer masking only applies to data accesses. If pointer masking is disabled (enable = 0), this field is ignored.
+If pointer masking is enabled for this privilege mode, ipmen=1 indicates that it applies to both instruction and data accesses. The semantics of this are described in <<_instruction_fetches>>. If ipmen=0, pointer masking only applies to data accesses. If pointer masking is disabled (xpmen = 0), this field is ignored.
 
 This is a WARL field. Pointer masking for instructions is only supported if the `Zjpminst` extension is present. If it is not present, an attempt to write 1 to this field may result in the field being set to 0. This does not affect any other field updates.
 
@@ -81,7 +81,7 @@ Enabling and disabling is expected to be a more frequent operation than other fi
 
 `Zjpm` reserves two new 1-bit WARL fields (`spmself` and `upmself`) in `menvcfg`. It also reserves a 1-bit WARL field in `henvcfg` and `senvcfg` that aliases `upmself` (as S-mode cannot access `menvcfg`).
 
-The fields control whether a privilege mode can modify its own pointer masking CSR. If this field is set to 0 at the start of a write to the CSR and the current privilege mode is the one that this CSR corresponds to (e.g., U-mode for upm), the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
+The fields control whether a privilege mode can modify its own pointer masking CSR. For example, if `upmself` is set to 0 at the start of a write to the `upm` CSR and the current privilege mode is U-mode, the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
 
 === Number of Masked Bits
 
@@ -97,7 +97,7 @@ Sv57, 7
 Sv64, 0 (to be addressed in future standards)
 Bare, 16 if Zjpmbare16 is present (0 otherwise)
 M-mode, 16 if Zjpmbare16 is present (0 otherwise)
-,=== 
+,===
 
 [NOTE]
 ====

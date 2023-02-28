@@ -3,7 +3,7 @@
 :description: RISC-V J Extension: Pointer Masking
 :company: RISC-V.org
 :revdate: 02/2023
-:revnumber: 0.5.1
+:revnumber: 0.5.2
 :revremark: Development
 //development: assume everything can change
 //stable: assume everything could change

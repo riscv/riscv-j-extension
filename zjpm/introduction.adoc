@@ -1,14 +1,12 @@
 == Introduction
 
-RISC-V Pointer Masking (PM) is a feature that, when enabled, causes the MMU to ignore the top N bits of the effective address (these terms will be defined more precisely in the Background section). This allows these bits to be used in whichever way the application chooses. Most commonly, these bits are used to store various types of tags, which can be leveraged by a number of hardware/software features, including sandboxing mechanisms and dynamic safety checkers such as HWASAN [1].
-
-This extension only adds the pointer masking functionality. Extensions that make use of the masked bits will be ratified independently and layered on top of the basic pointer masking functionality. Examples of such extensions include:
+RISC-V Pointer Masking (PM) is a feature that, when enabled, causes the MMU to ignore the top N bits of the effective address (these terms will be defined more precisely in the Background section). This allows these bits to be used in whichever way the application chooses. Most commonly, these bits are used to store various types of tags, which can be leveraged by a number of hardware/software features. Some of these use cases include:
 
 * **Tag checks:** When a masked address is accessed, the tag stored in the masked bits is compared against a range-based tag. This is used for dynamic safety checkers such as HWASAN [1]. Such tools can be applied in all privilege modes (U, S and M).
 * **Sandbox enforcement:** When a masked address is accessed, the masked bits are checked against a particular sandbox tag to enforce that addresses are limited to a particular range in memory. This is used for isolating heap and runtime memory in a managed runtime, and isolation of untrusted code in M mode.
 * **Read barriers:** When a masked address is accessed, the masked bits are checked against (e.g.,) a generation in a garbage collected environment, redirecting to slow path code on mismatch.
 * **Object type checks:** When a masked address is accessed, the masked bits are checked against a fixed type tag in an object-oriented runtime, redirecting to slow path code on mismatch.
 
-All of these use cases can be implemented in software or hardware. If implemented in software, pointer masking still provides performance benefits since all non-checked accesses do not need to unmask the address before every memory access. Hardware implementations are expected to provide even larger benefits due to performing tag checks out-of-band and hardening security guarantees derived from these checks.
+All of these use cases can be implemented in software or hardware. If implemented in software, pointer masking still provides performance benefits since all non-checked accesses do not need to transform the address before every memory access. Hardware implementations are expected to provide even larger benefits due to performing tag checks out-of-band and hardening security guarantees derived from these checks. We anticipate that future extensions may build on pointer masking to support this functionality in hardware.
 
 The Zjpm extension depends on the Zicsr extension. While we describe Zjpm as if it was a single extension, it is, in reality, a family of extensions that implementations or profiles may choose to individually include or exclude (see <<_subextensions>>).
