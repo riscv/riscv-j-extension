@@ -112,6 +112,7 @@ For other extensions, pointer masking applies to all explicit memory accesses by
 [NOTE]
 ====
 It is important to note that Cache Management Operation (CMO) must respect and take into account Pointer masking. Otherwise, a few serious security problem can appear, including:
+
 * CBO.ZERO may work as a STORE operation and if Pointer Masking is not respected, it will be possible to write to the memory bypassing the masking enforcement
 * If CMO won’t respect PM it would be possible to weaponize it in side-channel attack e.g., U-mode would be able flush PA address (without masking) that it should not be permitted to
 ====
