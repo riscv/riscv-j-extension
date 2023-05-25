@@ -12,7 +12,7 @@ Most bits in the register are currently unused. The remaining bits are reserved 
 [%header, cols=2*]
 .Figure 1: Pointer Masking register for U-mode (_**upm**_)
 ,===
-upm[XLEN-1:2], upm[1], upm[0]
+upm[XLEN-1:1], upm[0]
 WPRI, uxpmen (WARL)
 ,===
 
@@ -52,21 +52,21 @@ The upm register (<<_unprivileged_isa_extensions>>) is visible to all privilege 
 [%header, cols=2*]
 .Figure 2a: Pointer Masking register for M-mode (_**mpm**_)
 ,===
-mpm[XLEN-1:2], mpm[1], mpm[0]
+mpm[XLEN-1:1], mpm[0]
 WPRI, mxpmen (WARL)
 ,===
 
 [%header, cols=2*]
 .Figure 2b: Pointer Masking register for S-mode (_**spm**_)
 ,===
-spm[XLEN-1:2], spm[1], spm[0]
+spm[XLEN-1:1], spm[0]
 WPRI, sxpmen (WARL)
 ,===
 
 [%header, cols=2*]
 .Figure 2c: Pointer Masking register for virtualized S-mode (_**vspm**_)
 ,===
-vspm[XLEN-1:2], vspm[1], vspm[0]
+vspm[XLEN-1:1], vspm[0]
 WPRI, vsxpmen (WARL)
 ,===
 
