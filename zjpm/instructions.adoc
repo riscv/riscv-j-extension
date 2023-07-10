@@ -1,107 +1,38 @@
-== Unprivileged ISA Extensions
+== ISA Extensions
 
-This section describes the `Zjpm` user mode extension. The extension adds a new configuration CSR (upm). This CSR controls pointer masking in (V)U-mode and is read/write.
-
-[NOTE]
-====
-Most bits in the register are currently unused. The remaining bits are reserved for future use by extensions that leverage pointer masking functionality. This will reduce the number of registers that need to be context-switched in the future.
-====
-
-:table-caption!:
-
-[%header, cols=2*]
-.Figure 1: Pointer Masking register for U-mode (_**upm**_)
-,===
-upm[XLEN-1:2], upm[1], upm[0]
-WPRI, uxpmen (WARL)
-,===
-
-We now describe the meaning of the uxpmen field. This field controls whether pointer masking is active for the corresponding privilege mode. It defaults and resets to 0. A value of 1 indicates that pointer masking is enabled. Non user-mode components of the system may determine that user mode is not allowed to modify uxpmen. If this is the case, a write to upm that modifies the uxpmen bit results in an exception.
+This section describes the pointer masking extensions `Smmjpm`, `Smnjpm` and `Ssnjpm`. All of these extensions are privileged ISA extensions and do not add any new CSRs.
 
 [NOTE]
 ====
-Enabling and disabling is expected to be a frequent operation. The uxpmen field has therefore been placed at the low end of the CSR, to allow pointer masking to be enabled/disabled with a single CSRRSI or CSRRCI instruction.
+Future extensions may introduce additional CSRs to allow different privilege modes to modify their own pointer masking settings. This may be required for future use cases in managed runtime systems that are not currently addressed as part of this extension.
 ====
 
-Note that the number of bits that are being masked (N) is outside the control of user mode and needs to be communicated to user mode using an approach such as a syscall or other discovery mechanism. This communication mechanism is part of the ABI and not the ISA, and beyond the scope of this document.
+=== Ssnjpm
 
-== Privileged ISA Extensions
-
-This section describes the privileged pointer masking extensions `Ssjpm`, `Smjpm` and `Smjpmbare16`. Pointer masking adds several new CSRs, depending on which extensions are present.
-
-=== Added CSRs
-
-The following CSRs are added for each of the extensions:
-
-* **Ssjpm**: spm, vspm
-* **Smjpm**: mpm
-
-All CSRs are read/write. Pointer masking in M-mode is controlled by mpm. The spm and vspm registers control pointer masking in HS/S-mode and VS-mode, and follow the conventions established by the hypervisor extension. Specifically, spm controls pointer masking when running in unvirtualized (H)S-mode (which includes unvirtualized OS kernels as well as Type 1 and Type 2 hypervisors). When running in virtualized mode (VS), the content of the vspm register will be treated as the spm register.
-
-The layout of the four CSRs can be found in Figure 2a, 2b, and 2c for M, (H)S, and VS-mode.
+`Ssnjpm` adds two new 1-bit WARL fields (`upmen` and `upmself`) to `senvcfg`. Setting `upmen` enables (1) or disables (0) pointer masking for U/VU mode. The `upmself` field is not used by this version of the pointer masking extension and reserved for future use.
 
 [NOTE]
 ====
-Most bits in the registers are currently unused. The remaining bits are reserved for future use by extensions that leverage pointer masking functionality. This will reduce the number of registers that need to be context-switched in the future. While the layout of the registers is currently identical, this may change with future extensions.
+The intention of the `self` bit is to enable future versions of pointer masking that allow lower privilege modes to enable/disable their own pointer masking.
 ====
 
-The upm register (<<_unprivileged_isa_extensions>>) is visible to all privilege modes. The spm register is visible to S-mode and M-mode (including HS/VS-mode if the hypervisor extension is present). The vspm register is visible to HS-mode and M-mode if the hypervisor extension is present. The mpm register is only visible to M-mode.
+=== Smnjpm
 
-:table-caption!:
+`Smnjpm` adds two new 1-bit WARL fields (`spmen` and `spmself`) to `menvcfg`. Setting `spmen` enables (1) or disables (0) pointer masking for S/HS mode. The `spmself` field is not used by this version of the pointer masking extension and reserved for future use.
 
-[%header, cols=2*]
-.Figure 2a: Pointer Masking register for M-mode (_**mpm**_)
-,===
-mpm[XLEN-1:2], mpm[1], mpm[0]
-WPRI, mxpmen (WARL)
-,===
+In systems that support virtualization, `Smnjpm` also adds two new 1-bit WARL fields (`hpmen` and `hpmself`) to `henvcfg` that have the equivalent effect for VS-mode pointer masking.
 
-[%header, cols=2*]
-.Figure 2b: Pointer Masking register for S-mode (_**spm**_)
-,===
-spm[XLEN-1:2], spm[1], spm[0]
-WPRI, sxpmen (WARL)
-,===
+=== Smmjpm
 
-[%header, cols=2*]
-.Figure 2c: Pointer Masking register for virtualized S-mode (_**vspm**_)
-,===
-vspm[XLEN-1:2], vspm[1], vspm[0]
-WPRI, vsxpmen (WARL)
-,===
-
-We now describe the meaning of the mxpmen/sxpmen/vsxpmen field. The field controls whether pointer masking is active for the corresponding privilege mode. It defaults and resets to 0. A value of 1 indicates that pointer masking is enabled. Higher privilege modes may determine that a particular privilege mode is not allowed to modify its *xpmen field. If this is the case, a write to the CSR that modifies the *xpmen bit results in an exception.
-
-=== Additions to menvcfg, senvcfg and henvcfg
-
-`Ssjpm` reserves two new 1-bit WARL fields (`spmself` and `upmself`) in `menvcfg`. It also reserves a 1-bit WARL field in `henvcfg` and `senvcfg` that aliases `upmself` (as S-mode cannot access `menvcfg`).
-
-The fields control whether a privilege mode can modify its own pointer masking CSR. For example, if `upmself` is set to 0 at the start of a write to the `upm` CSR and the current privilege mode is U-mode, the write will be ignored. If the field is set to 1, the CSR write will proceed as usual. These rules apply whether or not pointer masking is enabled.
-
-If `Zjpm` is present but `Ssjpm` is not, the behavior is the same as if the `upmself` field was set to 1.
+`Smmjpm` adds two new 1-bit WARL fields (`mpmen` and `mpmself`) to `mseccfg`. Setting `mpmen` enables (1) or disables (0) pointer masking for M mode. The `mpmself` field is not used by this version of the pointer masking extension and reserved for future use.
 
 === Number of Masked Bits
 
-As described in <<_determining_the_value_of_n>>, the number of masked bits depends on the currently active address translation mode. The table below describes the number of masked bits (N) as a function of the current address translation mode.
+As described in <<_determining_the_value_of_n>>, the number of masked bits depends on the currently active privilege mode. It is implementation-dependent, but the ISA profile may define a valid range for values of N.
+
+Implementations may choose to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking within this address mode. This is defined by the profile. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding WARL field and follows WARL semantics.
 
 [NOTE]
 ====
-Application-level software does not have access to the current address translation mode. It is the responsibility of the OS to communicate the number of masked bits to the U-mode process in order to enable U-mode pointer masking.
-====
-
-[%header, cols=2*]
-.Figure 3: Number of masked bits
-,===
-Address Translation Mode, Masked Bits (N)
-Sv39, 16
-Sv48, 16
-Sv57, 7
-Sv64, 0 (to be addressed in future standards)
-Bare, 16 if Smjpmbare16 is present (0 otherwise)
-M-mode, 16 if Smjpmbare16 is present (0 otherwise)
-,===
-
-[NOTE]
-====
-We set N to 16 for Sv39 rather than 25 to facilitate TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. If Sv57 is supported, tag matching needs to be conditional on the current address translation mode. Note that the number of Masked Bits supported for each address translation mode may change in the future (e.g., future extensions may require N=25 for Sv39).
+Implementations may feel tempted to set N depending on the current addressing modes, and profiles may set a valid range of N that allows such implementations. For example, N could be set to 16 for Sv48 and to 25 for Sv39. However, having a single value of N (e.g., setting N to 16 for both Sv39 and Sv48 rather than 25) facilitates TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. If Sv57 is supported, tag matching needs to be conditional on the current address translation mode. Note that the number of Masked Bits supported for each address translation mode may change in the future, determined by the profile (e.g., future extensions may require N=25 for Sv39).
 ====

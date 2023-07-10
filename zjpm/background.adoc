@@ -72,7 +72,8 @@ NVBITS[1111111]  VBITS[11111111111111111111111110001...000]
 
 From an implementation perspective, ignoring bits is deeply connected to the address translation mode (e.g., Bare, Sv48, Sv57). In particular, applying the above transformation is cheap if it covers only the NVBITS (as it is equivalent to switching off validity checks) but expensive if the masked bits extend into the VBITS portion of the address (as it requires performing the actual sign extension). Similarly, when running in Bare or M mode, it is common for implementations to not use a particular number of bits at the top of the physical address range and pin them to zero. Applying the ignore transformation to all but the lowest of those bits is cheap as well (the lowest bit is still pinned to zero to ensure that sign extension will result in a valid physical address where all the top bits are zeros).
 
-The specified extensions **do not** support N to be configurable. Instead, N is a static function of the currently active address translation mode. Specifically, N is the number of NVBITS of this address translation mode (e.g., 16 for Sv48) if it is a virtual-memory scheme. Pointer masking in Bare and M-mode address translation mode is a separate extension (`Smjpmbare16`). If this extension is present, N is hardcoded to be 16 in Bare and M-mode (otherwise it is 0).
+The specified extensions **do not** support N to be configurable and the extension does not mandate specific values of N. Instead, valid values of N will be defined by the ISA profile. As a result, compilers and runtime systems will rely on the profile to determine the value of N to assume. The profile may decide to provide a range instead of a single value (e.g., that N must be between 16 and 25), allowing for a spectrum of different implementations. Different values of N may be defined for each privilege mode (U/VU, S/HS, and M). In cases where there is no profile, the value of N is chosen by the implementation (but needs to be communicated to the compiler and operating system).
+
 
 [NOTE]
 ====
@@ -81,12 +82,7 @@ Future versions of the pointer masking extension may introduce the ability to co
 
 === Pointer Masking and Privilege Modes
 
-Pointer masking is controlled separately for different privilege modes. The subset of supported privilege modes is determined by the set of supported pointer masking extensions. Different privilege modes may have different pointer masking settings active simultaneously and the hardware will automatically apply the pointer masking settings of the currently active privilege mode. A delegation mechanism allows higher privilege modes to optionally restrict lower privilege modes from changing their own pointer masking settings (Chapter 3).
-
-[NOTE]
-====
-Since pointer masking forms the foundation for security-related mechanisms, configurability per-privilege mode is critical for avoiding a window in time (e.g., when jumping into a trap handler) when the incorrect masking is applied.
-====
+Pointer masking is controlled separately for different privilege modes. The subset of supported privilege modes is determined by the set of supported pointer masking extensions. Different privilege modes may have different pointer masking settings active simultaneously and the hardware will automatically apply the pointer masking settings of the currently active privilege mode. A privilege mode's pointer masking setting is configured by bits in configuration registers of the next-higher privilege mode.
 
 Note that the pointer masking setting that is applied only depends on the active privilege mode, not on the address that is being masked. Some operating systems (e.g., Linux) may use certain bits in the address to disambiguate between different types of addresses (e.g., kernel and user-mode addresses). Pointer masking _does not_ take these semantics into account and is purely an arithmetic operation on the address it is given.
 
@@ -104,6 +100,7 @@ Pointer masking applies to all explicit memory accesses. In the Base and Privile
 * **Floating Point**: FLW, FLD, LFQ, FSW, FSD, FSQ.
 * **Compressed**: All instructions mapping to any of the above, and C.LWSP, C.LDSP, C.LQSP, C.FLWSP, C.FLDSP, C.SWSP, C.SDSP, C.SQSP, C.FSWSP, C.FSDSP.
 * **Memory Management**: FENCE, FENCE.I (if the currently unused address fields become enabled in the future), SFENCE.\*, HFENCE.*, SINVAL.\*, HINVAL.*.
+* **Cache Management Operations*** All instructions in Zicbom, Zicbop and Zicboz.
 
 MPRV affects pointer masking as well, causing the pointer masking settings of the effective privilege mode to be applied. Just like in the absence of pointer masking, MPRV does not affect instruction fetch and the current rather than the effective privilege mode's pointer masking settings are applied to instructions. Pointer masking also applies to HLV, HLVX and HSV instructions.
 
@@ -111,13 +108,13 @@ For other extensions, pointer masking applies to all explicit memory accesses by
 
 [NOTE]
 ====
-It is important to note that Cache Management Operation (CMO) must respect and take into account Pointer masking. Otherwise, a few serious security problem can appear, including:
+It is important to note that Cache Management Operations (CMOs) must respect and take into account pointer masking. Otherwise, a few serious security problem can appear, including:
 
-* CBO.ZERO may work as a STORE operation and if Pointer Masking is not respected, it will be possible to write to the memory bypassing the masking enforcement
-* If CMO won’t respect PM it would be possible to weaponize it in side-channel attack e.g., U-mode would be able flush PA address (without masking) that it should not be permitted to
+* CBO.ZERO may work as a STORE operation and if pointer masking is not respected, it would be possible to write to the memory bypassing the masking enforcement
+* If CMOs did not respect pointer masking, it would be possible to weaponize it in a side-channel attack. For example, U-mode would be able to flush a physical address (without masking) that it should not be permitted to.
 ====
 
-Pointer masking only applies to accesses generated by instructions on the CPU (including CPU extensions such as an FPU). For example, it does not apply to accesses generated by the IOMMU or devices.
+Pointer masking only applies to accesses generated by instructions on the CPU (including CPU extensions such as an FPU). E.g., it does not apply to accesses generated by the IOMMU or devices.
 
 Misaligned accesses are supported, subject to the same limitations that would exist in the absence of pointer masking. If a misaligned access crosses the boundary to the masked bits, it will behave as if the ignore transformation is applied to each constituent access and thus "wrap around". This ensures that both hardware implementations and emulation of misaligned accesses in M-mode behave the same way.
 
@@ -127,17 +124,15 @@ There is no guarantee that reading a CSR containing an address will retain any m
 
 === Constituent Extensions
 
-As indicated in <<_introduction>>, pointer masking refers to a number of separate extensions. This approach is used to capture optionality of pointer masking features. Profiles and implementations may choose to support an arbitrary subset of these extensions.
+As indicated in <<_introduction>>, pointer masking refers to a number of separate extensions, all of which are privileged. This approach is used to capture optionality of pointer masking features. Profiles and implementations may choose to support an arbitrary subset of these extensions and must define valid ranges for their corresponding values of N.
 
-**Unprivileged Extension**:
+**Extensions**:
 
-* **Zjpm**: U/VU-mode pointer masking is available if and only if this extension is present.
+* **Smnjpm**: U/VU-mode pointer masking is available if and only if this extension is present. It is controlled at the supervisor level.
+* **Smnjpm**: S/HS-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level. In the presence of virtualization, this extension also adds VS-mode pointer masking, controlled at the hypervisor level.
+* **Smjpm**: M-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level.
 
-**Privileged Extensions**:
+See <<_isa_extensions>> for details on how each of these extensions is exposed and configured.
 
-* **Ssjpm**: S/HS/VS-mode pointer masking is available if and only if this extension is present.
-* **Smjpm**: M-mode pointer masking is available if and only if this extension is present.
-* **Smjpmbare16**: Pointer masking applies to the Bare address translation mode, across all supported privilege modes. If this extension is present, N is hardcoded to 16 in Bare address translation mode. If it is not present, N is hardcoded to 0 in Bare address translation mode.
-
-Pointer masking only applies to RV64. On RV32, trying to enable pointer masking will cause an exception (see <<_unprivileged_isa_extensions>> and <<_privileged_isa_extensions>> for details). The same is the case on RV64 or larger systems when UXL/SXL/MXL is set to 1 for the corresponding privilege mode. Note that even on RV32, the CSRs introduced by pointer masking are still present, for compatibility between RV32 and larger systems with UXL/SXL/MXL set to 1.
+Pointer masking only applies to RV64. On RV32, trying to enable pointer masking will cause an exception (see <<_isa_extensions>> for details). The same is the case on RV64 or larger systems when UXL/SXL/MXL is set to 1 for the corresponding privilege mode. Note that even on RV32, the CSR bits introduced by pointer masking are still present, for compatibility between RV32 and larger systems with UXL/SXL/MXL set to 1.
 
