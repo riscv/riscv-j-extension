@@ -100,7 +100,7 @@ Pointer masking applies to all explicit memory accesses. In the Base and Privile
 * **Floating Point**: FLW, FLD, LFQ, FSW, FSD, FSQ.
 * **Compressed**: All instructions mapping to any of the above, and C.LWSP, C.LDSP, C.LQSP, C.FLWSP, C.FLDSP, C.SWSP, C.SDSP, C.SQSP, C.FSWSP, C.FSDSP.
 * **Memory Management**: FENCE, FENCE.I (if the currently unused address fields become enabled in the future), SFENCE.\*, HFENCE.*, SINVAL.\*, HINVAL.*.
-* **Cache Management Operations*** All instructions in Zicbom, Zicbop and Zicboz.
+* **Cache Management Operations**: All instructions in Zicbom, Zicbop and Zicboz.
 
 MPRV affects pointer masking as well, causing the pointer masking settings of the effective privilege mode to be applied. Just like in the absence of pointer masking, MPRV does not affect instruction fetch and the current rather than the effective privilege mode's pointer masking settings are applied to instructions. Pointer masking also applies to HLV, HLVX and HSV instructions.
 
@@ -128,7 +128,7 @@ As indicated in <<_introduction>>, pointer masking refers to a number of separat
 
 **Extensions**:
 
-* **Smnjpm**: U/VU-mode pointer masking is available if and only if this extension is present. It is controlled at the supervisor level.
+* **Ssnjpm**: U/VU-mode pointer masking is available if and only if this extension is present. It is controlled at the supervisor level.
 * **Smnjpm**: S/HS-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level. In the presence of virtualization, this extension also adds VS-mode pointer masking, controlled at the hypervisor level.
 * **Smjpm**: M-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level.
 
