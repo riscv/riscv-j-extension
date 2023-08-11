@@ -9,30 +9,30 @@ Future extensions may introduce additional CSRs to allow different privilege mod
 
 === Ssnjpm
 
-`Ssnjpm` adds two new 1-bit WARL fields (`upmen` and `upmself`) to `senvcfg`. Setting `upmen` enables (1) or disables (0) pointer masking for U/VU mode. The `upmself` field is not used by this version of the pointer masking extension and reserved for future use.
-
-[NOTE]
-====
-The intention of the `self` bit is to enable future versions of pointer masking that allow lower privilege modes to enable/disable their own pointer masking.
-====
+`Ssnjpm` adds a new 1-bit WARL field (`upmen`) to `senvcfg`. Setting `upmen` enables (1) or disables (0) pointer masking for U/VU mode.
 
 === Smnjpm
 
-`Smnjpm` adds two new 1-bit WARL fields (`spmen` and `spmself`) to `menvcfg`. Setting `spmen` enables (1) or disables (0) pointer masking for S/HS mode. The `spmself` field is not used by this version of the pointer masking extension and reserved for future use.
+`Smnjpm` adds a new 1-bit WARL field (`spmen`) to `menvcfg`. Setting `spmen` enables (1) or disables (0) pointer masking for S/HS mode.
 
-In systems that support virtualization, `Smnjpm` also adds two new 1-bit WARL fields (`hpmen` and `hpmself`) to `henvcfg` that have the equivalent effect for VS-mode pointer masking.
+In systems that support virtualization, `Smnjpm` also adds a new 1-bit WARL field (`hpmen`) to `henvcfg` that have the equivalent effect for VS-mode pointer masking.
 
 === Smmjpm
 
-`Smmjpm` adds two new 1-bit WARL fields (`mpmen` and `mpmself`) to `mseccfg`. Setting `mpmen` enables (1) or disables (0) pointer masking for M mode. The `mpmself` field is not used by this version of the pointer masking extension and reserved for future use.
-
-=== Number of Masked Bits
-
-As described in <<_determining_the_value_of_n>>, the number of masked bits depends on the currently active privilege mode. It is implementation-dependent, but the ISA profile may define a valid range for values of N.
-
-Implementations may choose to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking within this address mode. This is defined by the profile. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding WARL field and follows WARL semantics.
+`Smmjpm` adds a new 1-bit WARL field (`mpmen`) to `mseccfg`. Setting `mpmen` enables (1) or disables (0) pointer masking for M mode.
 
 [NOTE]
 ====
-Implementations may feel tempted to set N depending on the current addressing modes, and profiles may set a valid range of N that allows such implementations. For example, N could be set to 16 for Sv48 and to 25 for Sv39. However, having a single value of N (e.g., setting N to 16 for both Sv39 and Sv48 rather than 25) facilitates TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. If Sv57 is supported, tag matching needs to be conditional on the current address translation mode. Note that the number of Masked Bits supported for each address translation mode may change in the future, determined by the profile (e.g., future extensions may require N=25 for Sv39).
+There is an open question whether an SFENCE.VMA would be required after enabling/disabling pointer masking. The decision is TBD.
+====
+
+=== Number of Masked Bits
+
+As described in <<_determining_the_value_of_n>>, the number of masked bits depends on the currently active privilege mode and address translation mode. It is implementation-dependent, but the ISA profiles are expected to constrain the value of N (e.g., by setting a required minimum).
+
+Implementations may choose to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking within this address mode. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding pointer masking enable bit and follows WARL semantics.
+
+[NOTE]
+====
+Implementations may feel tempted to set N depending on the current addressing modes, and profiles may set a valid range of N that allows such implementations. For example, N could be set to 16 for Sv48 and to 25 for Sv39. However, having a single value of N (e.g., setting N to 16 for both Sv39 and Sv48 rather than 25) facilitates TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. However, if Sv57 is supported, tag matching may need to be conditional on the current address translation mode. Note that the number of Masked Bits supported for each address translation mode may change in the future, determined by the profile (e.g., future extensions may require N=25 for Sv39).
 ====
