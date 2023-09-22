@@ -3,9 +3,9 @@
 
 This document is released under the https://creativecommons.org/licenses/by/4.0/[Creative Commons Attribution 4.0 International License].
 
-The proposed mechanism is an independent set of ISA extensions developed as part of the RISC-V J Extension. This document defines a set of individual extensions (`Smmjpm`, `Smnjpm`, `Ssnjpm`) that are collectively referred to as *pointer masking*.
+The proposed mechanism is an independent set of ISA extensions developed as part of the RISC-V J Extension. This document defines a set of individual extensions (`Smmpm`, `Smnpm`, `Ssnpm`) that are collectively referred to as *pointer masking*.
 
 **Authors:** Adam Zabrocki, Martin Maas, Lee Campbell, RISC-V Runtime Integrity and J Extension Task Groups
 
-**Contributors:** Jecel Assumpcao, Allen Baum, Paul Donahue, Greg Favor, Andy Glew, Deepak Gupta, John Ingalls, Christos Kotselidis, Philip Reames, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the Runtime Integrity and J Extension Task Groups
+**Contributors:** Jecel Assumpcao, Allen Baum, Paul Donahue, Greg Favor, Andy Glew, Deepak Gupta, John Ingalls, Christos Kotselidis, Philip Reames, Ian Rogers, Josh Scheid, Kostya Serebryany, Boris Shingarov, Foivos Zakkak, Members of the Runtime Integrity and J Extension Task Groups [TODO: Update with the full list of contributors.]
 
