@@ -13,7 +13,7 @@ Each extension introduces a 2-bit WARL field (`PME`) that may take on the follow
 .Possible values of `PME` WARL field.
 |===
 |Value|Description
-|00|Pointer masking is disabled
+|00|Pointer masking is disabled (PMLEN=0)
 |01|Reserved
 |10|Pointer masking is enabled with PMLEN=XLEN-57 (PMLEN=7 on RV64)
 |11|Pointer masking is enabled with PMLEN=XLEN-48 (PMLEN=16 on RV64)
@@ -21,11 +21,11 @@ Each extension introduces a 2-bit WARL field (`PME`) that may take on the follow
 
 === Ssnpm
 
-`Ssnpm` adds a new 2-bit WARL field (`PME`) to `senvcfg`. Setting `PME` enables or disables pointer masking for U/VU mode, according to the values in Table 2.
+`Ssnpm` adds a new 2-bit WARL field (`PME`) to `senvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically U/VU mode), according to the values in Table 2.
 
 === Smnpm
 
-`Smnpm` adds a new 2-bit WARL field (`PME`) to `menvcfg`. Setting `PME` enables or disables pointer masking for S/HS mode, according to the values in Table 2.
+`Smnpm` adds a new 2-bit WARL field (`PME`) to `menvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically S/HS mode), according to the values in Table 2.
 
 In systems that support virtualization, `Smnpm` also adds a new 2-bit WARL field (`PME`) to `henvcfg` that have the equivalent effect for VS-mode pointer masking.
 
@@ -47,11 +47,11 @@ All of these fields are read-only 0 on RV32 systems.
 
 === Number of Masked Bits
 
-As described in <<_determining_the_value_of_n>>, the number of masked bits depends on the currently active privilege mode and address translation mode. The current standard only supports PMLEN=XLEN-48 and PMLEN=XLEN-57, but this assumption may be relaxed in future extensions and profiles.
+As described in <<_determining_the_value_of_pmlen>>, the number of masked bits depends on the effective privilege mode. The current standard only supports PMLEN=XLEN-48 and PMLEN=XLEN-57, but this assumption may be relaxed in future extensions and profiles.
 
-Implementations may choose to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking with PMLEN=XLEN-48 within this address mode. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding pointer masking enable bit and follows WARL semantics. Future profiles may choose to define certain combinations of address translation modes and supported values of PMLEN as mandatory.
+Implementations are allowed to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking with PMLEN=XLEN-48 within this address mode. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding pointer masking enable bit and follows WARL semantics. Future profiles may choose to define certain combinations of address translation modes and supported values of PMLEN as mandatory.
 
 [NOTE]
 ====
-Implementations may feel tempted to set PMLEN depending on the current addressing modes, and profiles may set a valid range of PMLEN that allows such implementations. For example, PMLEN could be set to 16 for Sv48 and to 25 for Sv39. However, having a single value of PMLEN (e.g., setting PMLEN to 16 for both Sv39 and Sv48 rather than 25) facilitates TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. However, if Sv57 is supported, tag matching may need to be conditional on the current address translation mode. Note that the number of Masked Bits supported for each address translation mode may change in the future as determined by future extensions and future profiles (e.g., future extensions may require PMLEN=25 for Sv39).
+Implementations may feel tempted to set PMLEN depending on the current addressing modes, and profiles may set a valid range of PMLEN that allows such implementations. For example, PMLEN could be set to 16 for Sv48 and to 25 for Sv39. However, having a single value of PMLEN (e.g., setting PMLEN to 16 for both Sv39 and Sv48 rather than 25) facilitates TLB implementations in designs that support Sv39 and Sv48 but not Sv57. 16 bits are sufficient for current pointer masking use cases but allow for a TLB implementation that matches against the same number of virtual tag bits independently of whether it is running with Sv39 or Sv48. However, if Sv57 is supported, tag matching may need to be conditional on the current address translation mode.
 ====
