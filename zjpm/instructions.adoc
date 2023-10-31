@@ -19,15 +19,17 @@ Each extension introduces a 2-bit WARL field (`PME`) that may take on the follow
 |11|Pointer masking is enabled with PMLEN=XLEN-48 (PMLEN=16 on RV64)
 |===
 
+All of these fields are read-only 0 on RV32 systems.
+
 === Ssnpm
 
 `Ssnpm` adds a new 2-bit WARL field (`PME`) to `senvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically U/VU mode), according to the values in Table 2.
 
+In systems where the H Extension is present, `Ssnpm` also adds a new 2-bit WARL field (`PME`) to `henvcfg`. Setting `PME` enables or disables pointer masking for VS-mode, according to the values in Table 2.
+
 === Smnpm
 
 `Smnpm` adds a new 2-bit WARL field (`PME`) to `menvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically S/HS mode), according to the values in Table 2.
-
-In systems that support virtualization, `Smnpm` also adds a new 2-bit WARL field (`PME`) to `henvcfg` that have the equivalent effect for VS-mode pointer masking.
 
 [NOTE]
 ====
@@ -38,12 +40,9 @@ The type of address determines which type of pointer masking is applied. For exa
 
 `Smmpm` adds a new 2-bit WARL field (`PME`) to `mseccfg`. The presence of `Smmpm` implies the presence of the `mseccfg` register, even if it would not otherwise be present. Setting `PME` enables or disables pointer masking for M mode, according to the values in Table 2.
 
-[NOTE]
-====
-Since pointer masking applies to the effective address only and does not affect any memory-management data structures, no SFENCE.VMA is required after enabling/disabling pointer masking.
-====
+=== Interaction with SFENCE.VMA
 
-All of these fields are read-only 0 on RV32 systems.
+Since pointer masking applies to the effective address only and does not affect any memory-management data structures, no SFENCE.VMA is required after enabling/disabling pointer masking.
 
 === Number of Masked Bits
 
