@@ -23,17 +23,17 @@ All of these fields are read-only 0 on RV32 systems.
 
 === Ssnpm
 
-`Ssnpm` adds a new 2-bit WARL field (`PME`) to `senvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically U/VU mode), according to the values in Table 2.
+`Ssnpm` adds a new 2-bit WARL field (`PME`) to `senvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (U/VU mode), according to the values in Table 2.
 
 In systems where the H Extension is present, `Ssnpm` also adds a new 2-bit WARL field (`PME`) to `henvcfg`. Setting `PME` enables or disables pointer masking for VS-mode, according to the values in Table 2.
 
 === Smnpm
 
-`Smnpm` adds a new 2-bit WARL field (`PME`) to `menvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (typically S/HS mode), according to the values in Table 2.
+`Smnpm` adds a new 2-bit WARL field (`PME`) to `menvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (S-/HS-mode if S-mode is implemented, or U-mode otherwise), according to the values in Table 2.
 
 [NOTE]
 ====
-The type of address determines which type of pointer masking is applied. For example, when running with virtualization in VS/VU mode with `vsatp.MODE` = Bare but `hgatp.MODE` != Bare, physical address pointer masking (zero extension) applies.
+The type of address determines which type of pointer masking is applied. For example, when running with virtualization in VS/VU mode with `vsatp.MODE` = Bare, physical address pointer masking (zero extension) applies.
 ====
 
 === Smmpm

@@ -35,7 +35,7 @@ transformed_effective_address =
 If PMLEN is less than or equal to NVBITS for the largest supported address translation mode on a given architecture, this is equivalent to ignoring a subset of NVBITS. This enables cheap implementations that modify validity checks in the MMU instead of performing the sign extension.
 ====
 
-When applied to a physical address, the ignore transformation replaces the upper PMLEN bits with 0. This includes both the case of running in M-mode and running in other privilege modes with Bare address translation mode.
+When applied to a physical address, including guest-physical addresses (i.e., all cases except when the active satp register's MODE field != Bare), the ignore transformation replaces the upper PMLEN bits with 0. This includes both the case of running in M-mode and running in other privilege modes with Bare address translation mode.
 
 [source]
 ."Ignore" Transformation for physical addresses, expressed in Verilog code.
@@ -152,9 +152,9 @@ Pointer masking refers to a number of separate extensions, all of which are priv
 
 **Extensions**:
 
-* **Ssnpm**: U/VU-mode pointer masking is available if and only if this extension is present. It is controlled at the supervisor level.
-* **Smnpm**: S/HS-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level.
-* **Smpm**: M-mode pointer masking is available if and only if this extension is present. It is controlled at the machine level.
+* **Ssnpm**: A supervisor-level extension that provides pointer masking for the next lower privilege mode (U-mode), and for VS- and VU-modes if the H extension is present.
+* **Smnpm**: A machine-level extension that provides pointer masking for the next lower privilege mode (S/HS if S-mode is implemented, or U-mode otherwise).
+* **Smpm**: A machine-level extension that provides pointer masking for M-mode.
 
 See <<_isa_extensions>> for details on how each of these extensions is configured.
 
