@@ -46,9 +46,7 @@ Since pointer masking applies to the effective address only and does not affect 
 
 === Number of Masked Bits
 
-As described in <<_determining_the_value_of_pmlen>>, the number of masked bits depends on the effective privilege mode. The current standard only supports PMLEN=XLEN-48 and PMLEN=XLEN-57, but this assumption may be relaxed in future extensions and profiles.
-
-Implementations are allowed to not make pointer masking available under certain address translation modes. For example, an implementation that supports Sv57 may choose to not support pointer masking with PMLEN=XLEN-48 within this address mode. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding pointer masking enable bit and follows WARL semantics. Future profiles may choose to define certain combinations of address translation modes and supported values of PMLEN as mandatory.
+As described in <<_determining_the_value_of_pmlen>>, the number of masked bits depends on the effective privilege mode. The current standard only supports PMLEN=XLEN-48 and PMLEN=XLEN-57, but this assumption may be relaxed in future extensions and profiles. Trying to enable pointer masking in an unsupported scenario represents an illegal write to the corresponding pointer masking enable bit and follows WARL semantics. Future profiles may choose to define certain combinations of privilege modes and supported values of PMLEN as mandatory.
 
 [NOTE]
 ====
