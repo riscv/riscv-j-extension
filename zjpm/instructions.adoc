@@ -1,16 +1,16 @@
 == ISA Extensions
 
-This section describes the pointer masking extensions `Smmpm`, `Smnpm` and `Ssnpm`. All of these extensions are privileged ISA extensions and do not add any new CSRs.
+This section describes the pointer masking extensions `Smmpm`, `Smnpm` and `Ssnpm`. All of these extensions are privileged ISA extensions and do not add any new CSRs. For the definitions of `Sspm` and `Supm`, see <<_pointer_masking_extensions>>.
 
 [NOTE]
 ====
 Future extensions may introduce additional CSRs to allow different privilege modes to modify their own pointer masking settings. This may be required for future use cases in managed runtime systems that are not currently addressed as part of this extension.
 ====
 
-Each extension introduces a 2-bit WARL field (`PME`) that may take on the following values to set the pointer masking settings for a particular privilege mode.
+Each extension introduces a 2-bit WARL field (`PMM`) that may take on the following values to set the pointer masking settings for a particular privilege mode.
 
 [%header, cols="25%,75%", options="header"]
-.Possible values of `PME` WARL field.
+.Possible values of `PMM` WARL field.
 |===
 |Value|Description
 |00|Pointer masking is disabled (PMLEN=0)
@@ -23,13 +23,13 @@ All of these fields are read-only 0 on RV32 systems.
 
 === Ssnpm
 
-`Ssnpm` adds a new 2-bit WARL field (`PME`) to bits 33:32 of `senvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (U/VU mode), according to the values in Table 2.
+`Ssnpm` adds a new 2-bit WARL field (`PMM`) to bits 33:32 of `senvcfg`. Setting `PMM` enables or disables pointer masking for the next lower privilege mode (U/VU mode), according to the values in Table 2.
 
-In systems where the H Extension is present, `Ssnpm` also adds a new 2-bit WARL field (`PME`) to bits 33:32 of `henvcfg`. Setting `PME` enables or disables pointer masking for VS-mode, according to the values in Table 2.
+In systems where the H Extension is present, `Ssnpm` also adds a new 2-bit WARL field (`PMM`) to bits 33:32 of `henvcfg`. Setting `PMM` enables or disables pointer masking for VS-mode, according to the values in Table 2.
 
 === Smnpm
 
-`Smnpm` adds a new 2-bit WARL field (`PME`) to bits 33:32 of `menvcfg`. Setting `PME` enables or disables pointer masking for the next lower privilege mode (S-/HS-mode if S-mode is implemented, or U-mode otherwise), according to the values in Table 2.
+`Smnpm` adds a new 2-bit WARL field (`PMM`) to bits 33:32 of `menvcfg`. Setting `PMM` enables or disables pointer masking for the next lower privilege mode (S-/HS-mode if S-mode is implemented, or U-mode otherwise), according to the values in Table 2.
 
 [NOTE]
 ====
@@ -38,7 +38,7 @@ The type of address determines which type of pointer masking is applied. For exa
 
 === Smmpm
 
-`Smmpm` adds a new 2-bit WARL field (`PME`) to bits 33:32 of `mseccfg`. The presence of `Smmpm` implies the presence of the `mseccfg` register, even if it would not otherwise be present. Setting `PME` enables or disables pointer masking for M mode, according to the values in Table 2.
+`Smmpm` adds a new 2-bit WARL field (`PMM`) to bits 33:32 of `mseccfg`. The presence of `Smmpm` implies the presence of the `mseccfg` register, even if it would not otherwise be present. Setting `PMM` enables or disables pointer masking for M mode, according to the values in Table 2.
 
 === Interaction with SFENCE.VMA
 
