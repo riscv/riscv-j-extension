@@ -49,6 +49,7 @@ endif::[]
 :footnote:
 
 include::colophon.adoc[]
+include::contributors.adoc[]
 include::introduction.adoc[]
 include::background.adoc[]
 include::instructions.adoc[]
