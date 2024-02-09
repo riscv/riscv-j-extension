@@ -115,7 +115,7 @@ Pointer masking applies to all explicit memory accesses. Currently, in the Base 
 * **Floating Point**: FLW, FLD, FLQ, FSW, FSD, FSQ.
 * **Compressed**: All instructions mapping to any of the above, and C.LWSP, C.LDSP, C.LQSP, C.FLWSP, C.FLDSP, C.SWSP, C.SDSP, C.SQSP, C.FSWSP, C.FSDSP.
 * **Memory Management**: FENCE, FENCE.I (if the currently unused address fields become enabled in the future), SFENCE.\*, HFENCE.*, SINVAL.\*, HINVAL.*.
-* **Hypervisor Extension**: HLV, HLVX, HSV
+* **Hypervisor Extension**: HLV.\*, HLVX.\*, HSV.\*
 * **Cache Management Operations**: All instructions in Zicbom, Zicbop and Zicboz.
 * **Vector Extension**: All vector load and store instructions in the ratified RVV 1.0 spec.
 
