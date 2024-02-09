@@ -46,7 +46,7 @@ Since pointer masking applies to the effective address only and does not affect 
 
 === Interaction with Two-Stage Address Translation
 
-Guest physical addresses (GPAs) are 2 bits wider than the corresponding virtual address translation modes, resulting in additional address translation schemes Sv32x4, Sv39x4, Sv48x4 and Sv57x4 for translating guest physical addresses to supervisor physical addresses. When running with virtualization in VS/VU mode with `vsatp.MODE` = Bare, this means that those two bits may be subject to pointer masking, depending on `hgatp.MODE` and `senvcfg.PMM`. If `vsatp.MODE` != BARE, this issue does *not* apply.
+Guest physical addresses (GPAs) are 2 bits wider than the corresponding virtual address translation modes, resulting in additional address translation schemes Sv32x4, Sv39x4, Sv48x4 and Sv57x4 for translating guest physical addresses to supervisor physical addresses. When running with virtualization in VS/VU mode with `vsatp.MODE` = Bare, this means that those two bits may be subject to pointer masking, depending on `hgatp.MODE` and `henvcfg.PMM`. If `vsatp.MODE` != BARE, this issue does *not* apply.
 
 [NOTE]
 ====
