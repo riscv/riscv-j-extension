@@ -126,7 +126,7 @@ This list will grow over time as new extensions introduce new instructions that 
 
 For other extensions, pointer masking applies to all explicit memory accesses by default. Future extensions may add specific language to indicate whether particular accesses are or are not included in pointer masking.
 
-MPRV and SPVP affect pointer masking as well, causing the pointer masking settings of the effective privilege mode to be applied. The exception to this rule is the case where MPRV is set while MXR is also set, in which case pointer masking does not apply (see <<_ssnpm>> for the rationale). As a result, hypervisor load/stores are not affected by the MPRV=1 and MXR=1 exception. For 2-stage translation, whether or not pointer masking applies is determined by mstatus.MXR as opposed to vsstatus.MXR.
+MPRV and SPVP affect pointer masking as well, causing the pointer masking settings of the effective privilege mode to be applied. The exception to this rule is the case where MPRV is set while MXR is also set, in which case pointer masking does not apply (see <<_ssnpm>> for the rationale). Hypervisor load/stores are not affected by the MPRV=1 and MXR=1 exception. For 2-stage translation, whether or not pointer masking applies is determined by mstatus.MXR as opposed to vsstatus.MXR.
 
 [NOTE]
 ====
