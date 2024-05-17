@@ -114,7 +114,6 @@ Pointer masking applies to all explicit memory accesses. Currently, in the Base 
 * **Atomics**: All instructions in RV32A and RV64A.
 * **Floating Point**: FLW, FLD, FLQ, FSW, FSD, FSQ.
 * **Compressed**: All instructions mapping to any of the above, and C.LWSP, C.LDSP, C.LQSP, C.FLWSP, C.FLDSP, C.SWSP, C.SDSP, C.SQSP, C.FSWSP, C.FSDSP.
-* **Memory Management**: SFENCE.\*, HFENCE.*, SINVAL.\*, HINVAL.*.
 * **Hypervisor Extension**: HLV.\*, HSV.* (in some cases; see <<_ssnpm>>).
 * **Cache Management Operations**: All instructions in Zicbom, Zicbop and Zicboz.
 * **Vector Extension**: All vector load and store instructions in the ratified RVV 1.0 spec.
@@ -126,6 +125,11 @@ This list will grow over time as new extensions introduce new instructions that 
 ====
 
 For other extensions, pointer masking applies to all explicit memory accesses by default. Future extensions may add specific language to indicate whether particular accesses are or are not included in pointer masking.
+
+[NOTE]
+====
+It is worth noting that Pointer Masking is not applied to SFENCE.\*, HFENCE.*, SINVAL.\*, or HINVAL.*. When such operation is invoked it is the responsibility of software to provide the correct address.
+====
 
 MPRV and SPVP affect pointer masking as well, causing the pointer masking settings of the effective privilege mode to be applied. When MXR is in effect at the effective privilege mode where explicit memory access is performed, pointer masking does not apply.
 
