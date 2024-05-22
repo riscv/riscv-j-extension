@@ -2,8 +2,8 @@ all: zjid-spec.pdf zjpm-spec.pdf
 
 zjid-spec.pdf: zjid/*.adoc docs-templates
 	mkdir -p zjid/images
-	cp docs-templates/images/risc-v_logo.png zjid/images
-	cp docs-templates/images/backpage.png zjid/images
+	cp docs-templates/src/images/risc-v_logo.png zjid/images
+	cp docs-templates/src/images/backpage.png zjid/images
 	asciidoctor-pdf \
     --attribute=mathematical-format=svg \
     --attribute=pdf-fontsdir=docs-templates/resources/fonts \
@@ -14,8 +14,8 @@ zjid-spec.pdf: zjid/*.adoc docs-templates
 
 zjpm-spec.pdf: zjpm/*.adoc docs-templates
 	mkdir -p zjpm/images
-	cp docs-templates/images/risc-v_logo.png zjpm/images
-	cp docs-templates/images/backpage.png zjpm/images
+	cp docs-templates/src/images/risc-v_logo.png zjpm/images
+	cp docs-templates/src/images/backpage.png zjpm/images
 	asciidoctor-pdf \
     --attribute=mathematical-format=svg \
     --attribute=pdf-fontsdir=docs-templates/resources/fonts \
