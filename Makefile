@@ -5,6 +5,7 @@ zjid-spec.pdf: zjid/*.adoc docs-templates
 	cp docs-templates/src/images/risc-v_logo.png zjid/images
 	cp docs-templates/src/images/backpage.png zjid/images
 	asciidoctor-pdf \
+    -a compress \
     --attribute=mathematical-format=svg \
     --attribute=pdf-fontsdir=docs-templates/resources/fonts \
     --attribute=pdf-style=docs-templates/resources/themes/riscv-pdf.yml \
@@ -17,6 +18,7 @@ zjpm-spec.pdf: zjpm/*.adoc docs-templates
 	cp docs-templates/src/images/risc-v_logo.png zjpm/images
 	cp docs-templates/src/images/backpage.png zjpm/images
 	asciidoctor-pdf \
+    -a compress \
     --attribute=mathematical-format=svg \
     --attribute=pdf-fontsdir=docs-templates/resources/fonts \
     --attribute=pdf-style=docs-templates/resources/themes/riscv-pdf.yml \
