@@ -3,7 +3,7 @@
 :description: RISC-V J Extension: Pointer Masking
 :company: RISC-V.org
 :revdate: 05/2024
-:revnumber: 1.0.0-rc2
+:revnumber: 1.0-rc3
 :revremark: Frozen
 //development: assume everything can change
 //stable: assume everything could change
@@ -15,11 +15,11 @@
 :preface-title: Preamble
 :colophon:
 :appendix-caption: Appendix
-:imagesdir: images
+:imagesdir: ../docs-resources/images
 :title-logo-image: image:risc-v_logo.png[pdfwidth=3.25in,align=center]
 //:page-background-image: image:draft.svg[opacity=20%]
 //:title-page-background-image: none
-:back-cover-image: image:backpage.png[opacity=25%]
+//:back-cover-image: image:backpage.png[opacity=25%]
 // Settings:
 :experimental:
 :reproducible:
