@@ -36,7 +36,7 @@ The memory accesses performed by the `HLVX.*` instructions are not subject to po
 
 [NOTE]
 ====
-`HLVX.*` instructions, designed for emulating implicit access to fetch instructions from guest memory, perform memory accesses that are exempt from pointer masking to facilitate this emulation. For the same reason, pointer masking does not apply when both MPRV and MXR are set.
+`HLVX.*` instructions, designed for emulating implicit access to fetch instructions from guest memory, perform memory accesses that are exempt from pointer masking to facilitate this emulation. For the same reason, pointer masking does not apply when MXR is set.
 ====
 
 === Smnpm
