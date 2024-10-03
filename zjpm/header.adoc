@@ -2,8 +2,8 @@
 = RISC-V Pointer Masking
 :description: RISC-V J Extension: Pointer Masking
 :company: RISC-V.org
-:revdate: 08/2024
-:revnumber: 1.0-rc3
+:revdate: 10/2024
+:revnumber: 1.0-rc4
 :revremark: Frozen
 //development: assume everything can change
 //stable: assume everything could change
