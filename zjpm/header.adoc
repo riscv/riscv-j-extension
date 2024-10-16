@@ -3,8 +3,8 @@
 :description: RISC-V J Extension: Pointer Masking
 :company: RISC-V.org
 :revdate: 10/2024
-:revnumber: 1.0-rc4
-:revremark: Frozen
+:revnumber: 1.0
+:revremark: Ratified
 //development: assume everything can change
 //stable: assume everything could change
 //frozen: of you implement this version you assume the risk that something might change because of the public review cycle  but we expect little to no change.
@@ -48,6 +48,14 @@ endif::[]
 :stem: latexmath
 :footnote:
 
+[WARNING]
+.This document is in the link:http://riscv.org/spec-state[Ratified state]
+====
+No changes are allowed. Any desired or needed changes can be the subject of a
+follow-on new extension. Ratified extensions are never revised.
+====
+
+[preface]
 include::colophon.adoc[]
 include::contributors.adoc[]
 include::introduction.adoc[]
