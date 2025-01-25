@@ -1,0 +1,47 @@
+# RISC-V J Extension Gap Analysis
+
+*Contributors*: Martin Maas, Adam Zabrocki, Members of the RISC-V J Extension Group
+
+*Status*: Development
+
+*Summary*: This document captures an analysis of how managed runtimes can benefit from support in RISC-V. The goal is to map these use cases to either existing RISC-V mechanisms such as memory tagging, or to propose new mechanisms. The document aims to cover a broad range of systems (not limited to managed runtimes but also including, e.g., the Linux kernel).
+
+## How to Contribute
+
+To contribute, you or your company must be a RISC-V International member (see link:https://riscv.org/specifications/contribute/[here] for more details). Please submit changes to this document as pull request against this repository. Please feel free to add yourself to the list of contributors, right before "Members of the RISC-V J Extension Group".
+
+If you are planning to start working on an area, you can add a note to the section stating "NOTE: WIP - <Your Name, Affiliation and/or GitHub>". This will help others interested in this area find out who else is working on it.
+
+Each section includes a list of remaining TODO items that are not yet being worked on. This is a good starting point if you are interested in contributing. If you have any questions, please reach out to the group at tech-j-ext@lists.riscv.org.
+
+## GC Barriers
+
+For each runtime system, we analyze which GC barriers are present, how they are implemented, and estimate what the relative benefit would be of optimizing them.
+
+### OpenJDK
+
+NOTE: WIP - Rivos
+
+### V8
+
+NOTE: WIP - Martin Maas
+
+### BPF
+
+NOTE: WIP - Ian Rogers, Adam Zabrocki
+
+### Remaining TODO Items
+
+BPF, SpiderMonkey, Mono, Golang, ART, Mojo Python JIT, R, Wasm, WAMR, OpenJ9
+
+## Linux Kernel
+
+NOTE: WIP - Ian Rogers, Adam Zabrocki
+
+### Remaining TODO Items
+
+RCU, Restartable Sequences
+
+## Remaining TODO Areas
+
+Rust (unsafe, ownership management), Instruction barriers, Return barriers, Thread confinement, Type Checks, Dynamic Dispatch, Object Tagging for Debuggers, Distributed Shared Memory
