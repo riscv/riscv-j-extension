@@ -1,0 +1,182 @@
+# OpenJDK Write/ReadBarriers Analysis
+
+## Standard Card Table Write Barrier (Serial GC / Parallel GC)
+
+Most generational GCs that use a card table have a write barrier similar to this. There are two versions of the barrier in HotSpot. Unconditional (default):
+
+(a0: obj address / t0: temporary value)
+
+[source]
+    srli a0, a0, CardSizeLog
+    li, t0, BiasedCardTableBottom
+    add t0, t0, a0
+    sb zr, (t0)
+
+Conditional (can be optionally enabled):
+
+(a0: obj address / t0,t1: temporary values)
+
+[source]
+    srli a0, a0, CardSizeLog
+    li, t0, BiasedCardTableBottom
+    add t0, t0, a0
+    # nothing to do if card already dirty (value == 0)
+    lbu t1, (t0)
+    beqz t1, done
+    sb zr, (t0)
+done:
+
+The barrier is usually unconditional to avoid unnecessary branches. The reason for the conditional version is to avoid false sharing. Let’s say two threads are frequently updating two objects that fall on potentially different cards that happen to be on the same cache line. The cache line might end up ping-ponging between two cpus. Making the write barrier conditional eliminates this issue. But, in practice, this case is quite rare.
+
+Generational GCs only care about old-to-young references, not young-to-<whatever> references. So, the barrier can be skipped if a0 is in the young generation, irrespective of whether the card is already dirty or not.
+
+## G1 Pre-Write Barrier
+
+The pre-barrier stores the pre-value of the reference field, before it is overwritten, into a thread-local store buffer. This is necessary for the correctness of concurrent marking which uses SATB (snapshot-at-the-beginning).
+
+(a0: field address / a1: pre-value / s7: thread-local thread object address /  t0,t1: temporary values)
+
+[source]
+    # nothing to do if marking is not in progress
+    lbu t0, MarkingInProgressFieldOffset(s7)
+    beqz t0, done
+    ld a1, (a0)
+    # nothing to do if the pre-value is NULL
+    beqz a1, done
+    # add pre-value to the thread-local store buffer
+    ld t0, StoreBufferIndexFieldOffset(s7)
+    # store buffer being full is handled in the runtime
+    beqz t0, store_buffer_is_full
+    addi t0, t0, -WordSize
+    sd t0, StoreBufferIndexFieldOffset(s7)
+    ld t1, StoreBufferFieldOffset(s7)
+    add t1, t1, t0
+    sd a1, (t1)
+done:
+
+*Note*: The barrier can be skipped if either a0 or a1 are in a young region. Young objects do not need to be visited at all according to SATB.
+
+## G1 Post-Write Barrier
+
+The post-barrier is used to update the remembered sets. It dirties a card (if not already young or dirty) and adds the address to a thread-local store buffer.
+
+(a0: field address / a1: new-value / s7: thread-local thread object address /  t0,t1,t2: temporary values)
+
+[source]
+    # nothing to do if a0 and a1 are on the same region
+    xor t1, a0, a1
+    srli t1, t1, HeapRegionSizeLog
+    beqz t1, done
+    # nothing to do if new-value is NULL
+    beqz a1, done
+    # read the card value
+    srli t1, a0, CardSizeLog
+    li, t0, BiasedCardTableBottom
+    add t0, t0, t1
+    lbu t1, (t0)
+    # nothing to do if a0 is on a young region
+    li t0, YoungCardValue
+    beq t1, t0, done
+    # nothing to do if card already dirty (value == 0)
+    fence w,r
+    lbu t1, (t0)
+    beqz t1, done
+    # dirty the card and add it to the store buffer
+    sb zr, (t0)
+    ld t2, StoreBufferIndexFieldOffset(s7)
+    # store buffer being full is handled in the runtime
+    beqz t2, store_buffer_is_full
+    addi t2, t2, -WordSize
+    sd t2, StoreBufferIndexFieldOffset(s7)
+    ld t1, StoreBufferFieldOffset(s7)
+    add t1, t1, t2
+    sd t0, (t1)
+done:
+
+## Write Barrier Discussion
+
+We don’t think there are obvious ways to leverage pointer masking or tagging to improve the above barriers. Having said that, note that in all three cases the barrier can be skipped for young objects (in fact the G1 post barrier explicitly checks whether the card has the young value). So, we could take advantage of pointer masking to set a bit pattern in the address of young objects. This will allow us to do a very efficient “is young” check (without a load). Note that the basic card table barrier doesn’t have a branch. Would it be worth adding a very well predicted branch to check for young objects and avoid the card table store in most cases?
+
+Note that a reference field write in G1 looks like this:
+
+[source]
+    pre_barrier(&a.f);
+    a.f = x;
+    post_barrier(&a.f, new_val);
+
+It’d be interesting if we could optimize it like this:
+
+[source]
+    if (is_young(a)) {
+        a.f = x;
+    } else {
+        pre_barrier(&a.f);
+        a.f = x;
+        post_barrier(&a.f, new_val);
+    }
+
+given that both barriers can be elided if the object is young. Being able to do that by checking bits on the object’s address (leveraging pointer masking), instead of having to read the card table and/or fields on the thread-local object, will make the check super efficient.
+
+An additional wacky idea. The vast majority of writes will be to young objects. Can we just do the write, assuming the object is young:
+
+    a.f = x;
+
+and somehow leverage pointer tagging to get a trap when the object is not young and do the barriers + store in the handler? We have not come up with a good way to achieve this.
+
+## Write Barrier Performance Evaluation
+
+We did a limited performance evaluation of filtering barriers based on checking address bits. We used a simple test harness for this and we run it on our HW simulators.
+Unfortunately, we can't share the actual results. However, we can share two observations:
+
+* Filtering the card table barrier for writes on young objects does not always pay off. Adding a branch to avoid a write, even if the branch is very well predicted, is not always the correct trade-off.
+* Filtering the two G1 barriers for writes on young objects, as we described earlier, is a clear win. In this case, both barriers have at least one branch, so adding a branch to avoid at least two branches is the correct trade-off.
+
+## ZGC Read Barriers
+
+Standard load barrier for ZGC:
+
+[source]
+    # load reference into t2
+    ld t2, 16(s0)
+    # correct mapping, current remapped bit == 1
+    lui t3, 0xe000
+    srli t3, t3, 0xc
+    and t3, t2, t3
+    beqz t3, done
+    jal zero, slow_path
+done:
+    srli t2, t2, 0x10
+
+We can improve on this by taking advantage of the `bexti` instruction:
+
+[source]
+    # load reference into t2
+    ld t2, 16(s0)
+    # correct mapping, current remapped bit == 1
+    bexti t3, t2, <remapped-bit>
+    beqz t3, done
+    jal zero, slow_path
+done:
+    srli  t2, t2, 0x10
+
+Standard store barrier for ZGC:
+
+[source]
+    ld t3, 32(t4)
+    # not remembered and not remapped, not marked young and not marked old -> bad
+    lui t2, 0xeae0
+    srli t2, t2, 0xc
+    and t3, t3, t2
+    beqz t3, done
+    jal zero, slow_path
+done:
+    # remapped and maybe remembered, marked young or marked old
+    lui t3, 0x1510
+    srli t3, t3, 0xc
+    slli t2, s0, 0x10
+    or t2, t2, t3
+    sd t2, 32(t4)
+
+## ZGC Read Barrier Discussion
+
+Unfortunately, ZGC encodes information about a reference at the bottom 14 bits (mainly because bottom bits are easier to acccess on intel). We could move the bits to the top. But unfortunately pointer masking on RISC-V cannot handle 14 bits.
