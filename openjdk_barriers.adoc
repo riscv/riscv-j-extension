@@ -1,5 +1,7 @@
 # OpenJDK Write/ReadBarriers Analysis
 
+*Contributors:* Tony Printezis (Rivos), Robbin Ehn (Rivos)
+
 ## Standard Card Table Write Barrier (Serial GC / Parallel GC)
 
 Most generational GCs that use a card table have a write barrier similar to this. There are two versions of the barrier in HotSpot. Unconditional (default):
