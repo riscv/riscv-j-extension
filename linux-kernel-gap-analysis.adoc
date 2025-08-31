@@ -1,0 +1,489 @@
+== RISC-V J-Extension Linux Kernel Gap Analysis
+
+Authors: Yuzhuo Jing (yuzhuo@google.com), Ian Rogers
+(irogers@google.com), Adam Zabrocki (azabrocki@nvidia.com)
+
+This document is draft contents for the Linux kernel gap analysis for
+RISC-V:
+
+https://github.com/riscv/riscv-j-extension/blob/master/gap-analysis.adoc
+
+The content is broken into 4 areas of interest within the Linux kernel:
+link:#concurrency[concurrency], link:#memory-management[memory
+management], link:#self-modifying-and-jitted-code[self-modifying and
+jitted code], and link:#stack-traces[stack traces]. Each section tries
+to summarize what parts of the RISC-V specification is relevant, what
+the Linux kernel is doing and then what gaps and opportunities exist. If
+no additional RISC-V support is needed then this is mentioned, so that
+it can be clear if topics within the Linux kernel have been overlooked.
+Finally to summarize and combine the RISC-V issues across the areas of
+interest there is the link:#hardware-support-gaps-and-opportunities[gaps
+and opportunities] section.
+
+=== Concurrency
+
+The relevant RISC-V standards are:
+
+* The fence instruction (from the Base Integer Instruction Set)
+* The "`A`" extension for Atomics instructions (Chapter 13 of The RISC-V
+Instruction Set Manual Volume I). Defines:
+** Atomic load-reserved/store-conditional (from the Zalrsc extension)
+** Atomic fetch-and-op instructions (from the Zaamo extension - Atomic
+Memory Operation = AMO)
+** Wait-on-Reservation-Set instructions (from the Zawrs extension)
+** Double/quad word Compare-and-Swap (from the Zacas extension)
+** Byte and Halfword Atomic Memory Operations (from Zabha extension)
+** Forward progress on LR/SC sequences (from the Ziccrse extension)
+* RISC-V Weak Memory Ordering (RVWMO)
+* Total Store Order (TSO - from the Ztso extension)
+
+The Linux kernel organizes locks into spinning and sleeping. Spin locks
+busy-wait and are able to be used everywhere such as in interrupt
+handlers. Sleeping locks (such as mutex) may block and go to sleep, as
+such they shouldn’t be used when holding a spinlock or in an interrupt
+handler. The real-time/preemptible kernel (PREEMPT_RT) converts some
+spinning locks to be sleepable.
+
+CPU local locks control preemption within a CPU local critical region.
+Uniprocessor (UP) variants of locks don’t spin and similarly disable
+preemption.
+
+==== Spinning locks
+
+The regular spinlock type is sleepable with a PREEMPT_RT kernel. The raw
+spinlock type doesn’t sleep and also doesn’t support lockdep analysis.
+The raw spinlock type is made from an arch spinlock type which is a
+queued spinlock on RISC-V when Zabha or Ziccrse extensions are present,
+due to the need for a forward progress guarantee, otherwise it is a
+ticket spinlock.
+
+The ticket spinlock consists of 2 16-bit "`now serving`" and "`next
+ticket`" values. The lock operation atomically increments the next
+ticket and takes the current value as the task’s ticket. If the ticket
+matches that the "`now serving`" value then the lock is acquired
+otherwise the lock spins until an unlock increments the "`now serving`"
+value.
+
+The queued spinlock is a variant of an MCS lock. It avoids all CPUs
+accessing the same 32-bit integer by having a per-CPU list node that the
+lock contender polls the value of. Unlocking the queued spinlock causes
+a write only to the list node of the next waiting contender, rather than
+to all contenders, improving scalability.
+
+Optimized-Spin-Queue (OSQ) locks support cancellation and are intended
+for use in areas like CPU hot plugging.
+
+Spin locks disable preemption with _bh, _irq and _irqsave/restore
+variants respectively disable bottom halves (soft interrupts),
+interrupts and save/restore interrupt disable state.
+
+==== Sleeping locks
+
+While spin locks respect FIFO order of acquisition, sleeping locks may
+participate in priority inheritance allowing higher priority tasks to
+jump to the head of the queue. Mutex have an atomic long for their owner
+and a wait list protected by a raw spinlock for contention.
+
+Semaphores are a sleepable form of mutual exclusion that allows for the
+unlock to happen not by the owner. The percpu_rw_semaphore is built on
+top of the Read Copy Update (RCU) memory reclamation mechanism. Read
+Copy Update notionally has a global counter/epoch with the observed
+value/epoch recorded for each CPU. An updater knows their CPU’s
+count/epoch and that once all CPUs have a counter/epoch value greater
+than their count/epoch they can reclaim memory that was made unreachable
+during their epoch - such reclamation can happen asynchronously in a
+callback. The percpu_rw_semaphore works similarly, on the fast path
+readers perform the normal rcu_read_lock/rcu_read_unlock, however, a
+writer can request readers wait for the writer, which they know will
+have happened once all readers have moved to the next counter/epoch
+value. Reaching the "`quiescent-state`" where all readers have a
+counter/epoch value after the updater’s can take hundreds of
+milliseconds, and during such a period all new readers are starved out,
+so only a few such writes with a percpu_rw_semaphore are possible per
+second.
+
+==== Other locks
+
+Sequence locking checks a sequence number on entry and exit of a
+critical region. If the sequence number changed then the critical region
+is retried.
+
+By reacquiring locks, the very little used wound/wait mutexes allow
+deadlock to be broken.
+
+Futexes are the underlying system call to user space locks, condition
+variables, etc. Waiting user threads pass an address of a lock and its
+expected value, if the value is the same then the thread is queued.
+Futex wake allows a number of threads waiting on an address to be
+awoken. To avoid thundering herds on locks guarding condition variables,
+threads can be requeued from one futex to another. Priority inheritance
+is also possible.
+
+==== membarrier
+
+Membarrier is a system call introduced in Linux 4.3 that guarantees all
+threads see a memory barrier. It can be used as a foundation for user
+space RCU and epoch based garbage collection.
+
+==== Restartable sequences
+
+Restartable sequences are used in user code to determine a critical
+region has been preempted, migrated or received a signal. The beginning,
+end and abort "`IPs`" are recorded in a userland data structure informed
+to the kernel via the rseq system call.
+
+==== RISC-V gaps
+
+Locking within large concurrent systems has long been a popular topic in
+high performance computing. For example in 1991 Mellor-Crummey and and
+Scott (https://dl.acm.org/doi/10.1145/103727.103729) say:
+
+[quote,Algorithms for Scalable Synchronization on Shared — Memory Multiprocessors]
+____
+More recently, there have been proposals for multistage
+interconnection networks that combine concurrent accesses to the same
+memory location [17, 37, 42], multistage networks that have special
+synchronization variables embedded in each stage of the network [211,
+and special-purpose cache hardware to maintain a queue of processors
+waiting for the same lock [14, 28, 35]. The principal purpose of these
+hardware primitives is to reduce the impact of busy waiting. Before
+adopting them it is worth considering the extent to which software
+techniques can achieve a similar result.
+____
+
+Within the performance of synchronization primitives an area of interest
+of more recent interest has been in Aarch64’s near and far atomics:
+
+Jesus, R., Weiland, M. (2023). A Study on the Performance Implications
+of AArch64 Atomics. In: Bhatele, A., Hammond, J., Baboulin, M., Kruse,
+C. (eds) High Performance Computing. ISC High Performance 2023. Lecture
+Notes in Computer Science, vol 13948. Springer, Cham.
+https://doi.org/10.1007/978-3-031-32041-5_15
+
+Near atomics occur on the cache line of the CPU while remote atomics may
+occur on the cache line of a remote CPU. The far atomics generally
+incurring larger bus overhead. The configuration of near or far atomics
+is controlled by an auxiliary CPU control register.
+
+=== Memory management
+
+Memory allocation and freeing is handled through a number of potential
+kernel calls, such as kmalloc, vmalloc, etc. depending on the intended
+use of the memory.
+
+When pointers are shared, reference counting is the most basic form of
+management and builds up the atomic type.
+
+As mentioned in "`Sleeping locks`" above, Read Copy Update (RCU) tracks
+an epoch readers are within and reclaims memory once readers have moved
+to a newer epoch. The readers are reading the memory associated with the
+RCU read locked region, and this shouldn’t be thought of as readers in
+the sense of a reader-writer lock. Sleepable RCU (SRCU) allows
+sleeping/blocking locks to be used inside an RCU region. By arranging
+that the "`quiescent state`" isn’t ended by preemption, both RCU and
+SRCU support preemption.
+
+==== Hazard pointers
+
+Hazard pointers provide a means for detecting memory is in use at a
+granularity finer than an RCU epoch. The most recent proposal for their
+use in a limited Linux kernel context is in:
+
+https://lore.kernel.org/lkml/20250625031101.12555-2-boqun.feng@gmail.com/
+
+==== Memory Protection Keys
+
+Memory protection keys introduce protection domains, a typically very
+small integer associated with pages. The system calls pkey_alloc and
+pkey_free create and manage the lifetime of the integer. pkey_mprotect
+controls the permissions associated with the protection domain, x86
+supporting access and/or write denied, ARM supporting read/write/execute
+permissions. An example uses of protection keys are for managing JIT
+caches, switching from read-write to read-execute permissions. The V8
+runtime uses memory protection keys.
+
+==== TLB flushing
+
+When permission is given to a page then normal TLB fetching will correct
+the entry, when permissions are removed from a page then TLB flushing is
+necessary. On RISC-V a TLB flush can happen on a local CPU and the
+running task can have an associated Address Space Identifier (ASID). To
+flush TLB entries on remote CPUs an Inter-Processor Interrupt (IPI) is
+used and then the TLB flushing is running within the remote CPUs
+interrupt handler. IPIs are typically slow and so more recent x86 CPUs
+with the INVLPGB instruction and ARM CPUs with the TLBI instruction will
+broadcast and flush TLB entries on remote CPUs.
+
+==== RISC-V gaps
+
+The use of atomics for reference counting means read-only (immutable)
+data will be brought exclusively into the cache for the sake of
+modifying the cache line of the reference count. The use of near and far
+atomics may help here.
+
+Memory protection keys are missing any RISC-V support.
+
+The forthcoming Zjid extension is anticipated to address the requirement
+for TLB flushing on remote RISC-V harts. However, its ratification is
+still pending, and thus, its timeline remains uncertain.
+
+=== Self-modifying and jitted code
+
+The relevant RISC-V standards are:
+
+* Instruction Fetch Fence (from the Zifencei extension)
+* Proposed extension Zjid
+
+==== Static keys and calls
+
+Static keys are used to implement optimized branches for rarely changing
+conditions through the use of self-modifying code. With inline assembly
+known as "`asm goto`" the kernel places a nop instruction as well was
+patching information any place a static key is used, as proposed in:
+
+https://gcc.gnu.org/legacy-ml/gcc-patches/2009-07/msg01556.html
+
++#define TRACE1(NUM) \ +
++ do \{ \ +
++ asm goto ("`0: nop;`" \ +
++ "`.pushsection trace_table;`" \ +
++ "`.long 0b, %l0;`" \ +
++ "`.popsection`" \ +
++ : : : : trace#NUM); \ +
++ if (0) \{ trace#NUM: trace(); } \ +
++ } while (0) +
++#define TRACE TRACE1(__COUNTER__)
+
+The code using the static key looks like:
+
+DEFINE_STATIC_KEY_FALSE(key); +
+… +
+if (static_branch_unlikely(&key)) +
+do unlikely code +
+else +
+do likely code +
+… +
+static_branch_enable(&key); +
+… +
+static_branch_disable(&key); +
+…
+
+Similar to a static key, a static call is used to optimize an indirect
+branch into a direct branch through self modifying code.
+
+==== Tracepoints
+
+Tracepoints provide places the kernels behavior can be probed, for
+example on the allocation of an ext4 inode. They are implemented using
+static keys where the default behavior is not to perform the probe.
+
+==== Kprobes and kretprobes
+
+A kprobe patches an instruction in a kernel function to be a breakpoint.
+A kretprobe does similar but within the breakpoint function the return
+address of the function is changed. After trapping the kprobe will be
+used to gather debug or performance data, after this has executed the
+instruction patched with a breakpoint is executed and the original
+function resumed.
+
+The CONFIG_OPTPROBES kernel configuration optimizes kprobes to branch to
+a buffer of generated code that emulates the breakpoint trap rather than
+to execute a trap itself.
+
+==== Ftrace
+
+Fprobes are similar to kprobes and kretprobes. Instead of patching
+instructions with a trap, fprobes rely on the kernel’s compiler
+inserting a nop instruction on function entry (the -pg option to
+gcc/clang). The ftrace mechanism will patch the nop to become the jump
+so the original instruction doesn’t need executing or emulating.
+
+==== Live patching
+
+Live patches are special kernel modules that look to replace kernel
+functions with newer patched ones. Live patches allow a kernel to be
+updated, typically with security fixes, without reboots - a feature
+often required in data centers for long customer uptimes. The
+consistency model tries to ensure only the new function is in use. It
+determines whether the function is use by examining the stack of
+sleeping tasks, at return to userland or by explicit calls in the kernel
+to klp_update_patch_state. Aspects of the enabling of the live patches
+function use ftrace handlers.
+
+==== Kexec
+
+Kexec switches a running kernel to another running kernel without the
+need to restart a system and run its bootloader, the kexec system call
+behaves like a bootloader. RISC-V supports the kexec system call.
+
+==== BPF
+
+BPF is a register based ISA, with 16 registers, intended to be easily
+lowerable into modern ISAs. BPF programs are typically written in C and
+compiled, they are loaded into the kernel with a dedicated system call.
+The program can be attached to probes, used to filter perf events and to
+extend networking functionality. BPF adds a communication mechanism with
+userland through maps. BPF programs are verified, with verification
+banning programs with, for example, non-counted loops or accessing
+memory. The verification can also change the offsets used in memory
+accesses with Compile Once Run Everywhere (CORE) annotations, as kernel
+data structures often move the locations of variables primarily through
+the C preprocessor when compiling the kernel.
+
+BPF has an indirect threaded interpreter but RISC-V also provides a JIT
+that can be enabled or disabled by a write to
+/proc/sys/net/core/bpf_jit_enable. The JIT compiler statically maps BPF
+registers to RISC-V registers and turns the BPF opcodes into RISC-V ones
+without any intermediate form optimization. The JIT cache is allocated
+similarly to the executable memory for kprobes.
+
+==== JUMP_LABEL
+
+The main purpose of the JUMP_LABELs is to enable a transparent branch
+optimization that makes certain almost-always-true or
+almost-always-false branch conditions cheaper to execute within the
+kernel.
+
+Certain performance-sensitive kernel code (including trace points,
+scheduler functionality, networking code etc.) have such branches and
+include support for JUMP_LABEL optimization.
+
+From the implementation perspective, the compiler injects a long NOP
+instruction (with the same length as potential JUMP instruction) in the
+place of the potential branch condition. When the condition flag is
+toggled to true, the NOP will be converted to a JUMP instruction to
+execute the conditional block of instructions.
+
+There are 2 modes of JUMP_LABEL logic:
+
+* Default mode where JUMP/NOP is immediately converted +
+* "`Batch`" mode where the potential JUMP/NOP conversions are added to
+the bookkeeping structure and are converted at once
+
+The main reason behind the "`batch`" mode is performance. Every time
+when IMEM is modified, all the RISC-V "`harts`" must flush the
+corresponding I-CACHE range. Currently, Linux kernel implements that on
+RISC-V by sending IPI enforcing execution of "`fence.i`" instruction on
+each "`online`" core.
+
+The list of supported architectures by JUMP_LABEL functionality can be
+found here:
+
+https://elixir.bootlin.com/linux/latest/source/Documentation/features/core/jump-labels/arch-support.txt
+
+Note:
+
+The RISC-V spec states that a hart must execute a data fence before
+triggering a remote "`fence.i`" instruction in order to make the
+modification visible for remote harts.
+
+IPIs on RISC-V are triggered by MMIO writes to either CLINT or S-IMSIC,
+so the fence ensures previous data writes "`happen before`" the MMIO.
+
+The forthcoming Zjid extension is anticipated to address and optimize
+that logic for remote RISC-V harts. However, its ratification is still
+pending, and thus, its timeline remains uncertain.
+
+==== RISC-V gaps
+
+CONFIG_OPTPROBES isn’t supported by RISC-V but is supported by ARM,
+PowerPC and x86. Ftrace is supported by RISC-V in Linux, which is likely
+the more important performance case.
+
+Live patching requires precise stack traces to accurately transition
+from the old to the new function. Frame pointers are optional with
+RISC-V and during function prologues and epilogues they are inaccurate.
+To support accurate stack traces ORC could be implemented but most Linux
+kernel effort is now focussed on SFrames.
+
+=== Stack traces
+
+The RISC-V calling convention has optional framepointers (register x8)
+whose use is enabled by the -fno-omit-frame-pointers option. Stack
+traces in the linux kernel are captured by perf samples and by BPF
+programs. Perf’s default stack traces are an array of "`instruction
+pointers`" with special flags to mark the transition from kernel to user
+code. BPF programs can grab stack traces with the kernel and user land
+portions being separated. The stack traces are written into a BPF map,
+allowing for the repeated stack traces to be de-duplicated.
+
+Frame pointer based stack unwinding is inaccurate within function
+prologues and epilogues. In non-kernel code DWARF debug information can
+fill in the gap and allow stack traces when there is no frame pointer
+register. DWARF debug information is very versatile, providing a
+bytecode that can describe any stack frame layout. The versatility has
+come at a cost as the bytecode may be corrupt and cause the unwinding
+mechanism to crash. It also stores information like where registers are
+saved, in case stack frames elsewhere have used that register as a frame
+pointer. To avoid the pitfalls of DWARF the ORC format was proposed as
+simplified tables of frame sizes for functions. SFrames updated ORC and
+have userland support.
+
+Kernel pages are guaranteed to be in memory, so accessing unwinding
+information separate from code is always possible. For user code the
+pages need to be in the page cache, to support this SFrames have
+proposed deferred user stack unwinding. With deferred unwinding pages
+can be faulted-in at the transition from kernel to user code. The change
+in unwinding behavior has implications for tools and stack trace
+deduplication in BPF programs, which may need rewriting because of it.
+
+There is pressure for SFrames because of the need for accurate stack
+traces for live patching and because a lot of user code is compiled with
+frame pointers omitted.
+
+==== Hardware branch sampling
+
+On x86, the Last Branch Record (LBR) feature records source and
+destination addresses, along with flags such as branch type, TSX
+information, etc. This information is exposed in the Linux perf sample,
+copying from a hardware buffer or memory, in the optional perf branch
+sample section. The branch samples can be used to determine the stack
+trace of user and kernel code. The RISC-V Control Transfer Records
+extension provides similar information.
+
+==== Perf auxiliary traces
+
+Linux perf supports additional raw data in samples and an auxiliary
+tracing buffer outside of the kernel’s control. Notable uses of this
+functionality include AMD Instruction Based Sampling, ARM coresight, ARM
+Statistical Profiling Extension and Intel Processor Trace. Similarly
+RISC-V has the Processor Trace Specification.
+
+==== Shadow stacks and Control-Flow Integrity
+
+Shadow stack and Control-Flow Integrity are ISA extensions to help
+defend against common attacks. The Zicfilp extension to RISC-V adds a
+landing pad state and landing pad instructions so that indirect branches
+can only occur to known landing pad locations. The Zicfiss adds a shadow
+stack so that calls push a return address to a privileged area of memory
+and returns check that the return is to the expected shadow stack
+location.
+
+==== RISC-V gaps
+
+The Zicfilp and Zicfiss extensions ensure security around stacks is well
+handled on RISC-V.
+
+SFrame support in the Linux kernel for RISC-V would help with live
+patching and stack traces when frame pointers are omitted.
+
+RISC-V processor trace support isn’t yet present in the Linux kernel
+perf.
+
+=== Hardware support gaps and opportunities
+
+In summary the gaps identified from the previous sections are:
+
+Hardware gaps:
+
+* Near/far atomics - concurrency and reference counting. +
+* Memory protection keys. +
+* Remote CPU TLB invalidation instructions. +
+* Non-temporal instructions that could indicate near/far cache accesses in relation to atomics.
+
+Software gaps:
+
+* SFrame support for RISC-V. +
+* Processor Trace support. +
+* Kprobe optimization (CONFIG_OPTPROBES). +
+* Opportunities from the memory tag extensions.
