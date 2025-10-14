@@ -1,0 +1,45 @@
+# Golang Write Barrier Analysis
+
+*Contributors:* Tony Printezis (Rivos), Mark Ryan (Rivos)
+
+## Default GC
+
+This is the barrier for the default Go GC:
+
+(x10: reference field address, x11: new-value)
+
+[source]
+    # implicit null check on x10?
+    lb x0, 0(x10)
+    # read “is GC active?” flag
+    auipc x5, 0xbc
+    lwu x5, 1616(x5)
+    # if GC is not active skip the barrier
+    beqz x5, do_store
+    # read pre-value
+    ld x5, 0(x10)
+    # call runtime.gcWriteBarrier2 to return a buffer with at least 2 slots
+    jal runtime.gcWriteBarrier2
+    # add new-value and pre-value to the buffer
+    sd x11, 0(x24)
+    sd x5, 8(x24)
+do_store:
+    sd x11, 0(x10)
+
+There are versions of this for 1, 2, 3, etc. number of buffer slots:
+
+[source]
+runtime.gcWriteBarrier2:
+  	li x24, 16
+  	jal runtime.gcWriteBarrier
+
+``runtime.gcWriteBarrier`` allocates the required number of bytes (in x24) in a buffer and returns the address of the first slot.
+If the buffer is full, it will first flush it (by iterating over its entries and marking those objects; this is quite expensive) then allocate the required number of bytes in it.
+
+## Discussion
+
+There is one obvious optimization which is to inline ``runtime.gcWriteBarrier2``.
+The barrier can set ``x24`` and call ``runtime.gcWriteBarrier`` directly.
+This will add an extra instruction to the barrier but save one extra jump.
+But given that this code is only reached when the GC is active, this probably won’t matter.
+Apart from that, we don’t think we can take advantage of any of the memory masking / tagging extensions for this barrier.
